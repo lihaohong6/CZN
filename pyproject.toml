@@ -4,4 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pywikibot>=11.2.0",
+    "wikitextparser>=0.56.4",
+]
