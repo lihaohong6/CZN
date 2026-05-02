@@ -1,8 +1,18 @@
 import json
+import re
 from functools import cache
 from pathlib import Path
 
 db_root = Path("vendor/assets/db")
+
+
+def resolve_text_markup(text: str) -> str:
+    text = re.sub(
+        r"<(color_\w+)>",
+        lambda m: f'<span class="czn-color-{m.group(1)[6:].replace("_", "-")}">',
+        text,
+    )
+    return text.replace("</>", "</span>")
 
 
 @cache

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import cache
 
-from utils import load_db, load_text
+from utils import load_db, load_text, resolve_text_markup
 from wiki_utils import save_json_page
 
 INFO_FIELDS = {
@@ -50,7 +50,7 @@ def parse_character_info() -> dict[int, dict]:
         if char_id not in characters:
             continue
         result[char_id] = {"id": char_id, "name": characters[char_id].name} | {
-            k: entry[k] for k in INFO_FIELDS if k in entry
+            k: resolve_text_markup(entry[k]) for k in INFO_FIELDS if k in entry
         }
     return result
 

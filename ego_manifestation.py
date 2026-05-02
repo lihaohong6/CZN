@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from functools import cache
 
 from characters import parse_characters
-from utils import load_text
+from utils import load_text, resolve_text_markup
 from wiki_utils import save_json_page
 
 
@@ -29,7 +29,9 @@ def parse_ego_manifestations() -> dict[int, EgoManifestation]:
     for key, val in data.items():
         if key.startswith("title@limit_"):
             titles[int(key.removeprefix("title@limit_"))] = val
-        elif key.startswith("sub_title@limit_") and not key.startswith("sub_title@limit_ref"):
+        elif key.startswith("sub_title@limit_") and not key.startswith(
+                "sub_title@limit_ref"
+        ):
             level_str = key.removeprefix("sub_title@limit_")
             if level_str.isdigit():
                 sub_titles[int(level_str)] = val
@@ -41,12 +43,14 @@ def parse_ego_manifestations() -> dict[int, EgoManifestation]:
         char_id_str, _, level_str = key.removeprefix("desc@limit_").rpartition("_")
         char_id, level = int(char_id_str), int(level_str)
         result.setdefault(char_id, EgoManifestation(char_id=char_id))
-        result[char_id].levels.append(EgoManifestationLevel(
-            level=level,
-            title=titles.get(level, ""),
-            sub_title=sub_titles.get(level, ""),
-            desc=desc,
-        ))
+        result[char_id].levels.append(
+            EgoManifestationLevel(
+                level=level,
+                title=titles.get(level, ""),
+                sub_title=sub_titles.get(level, ""),
+                desc=resolve_text_markup(desc),
+            )
+        )
 
     for ego in result.values():
         ego.levels.sort(key=lambda lvl: lvl.level)
@@ -62,7 +66,9 @@ def save_ego_manifestations():
         if char_id not in characters:
             continue
         obj[characters[char_id].name] = ego.levels
-    save_json_page("Module:EgoManifestation/data.json", obj, summary="update ego manifestations")
+    save_json_page(
+        "Module:EgoManifestation/data.json", obj, summary="update ego manifestations"
+    )
 
 
 def main():
