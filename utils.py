@@ -2,13 +2,7 @@ import json
 from functools import cache
 from pathlib import Path
 
-text_root = Path("vendor/text")
 db_root = Path("vendor/assets/db")
-
-
-@cache
-def load_text(name: str) -> dict[str, str]:
-    return json.loads((text_root / f"{name}.json").read_text(encoding="utf-8"))
 
 
 @cache
@@ -17,6 +11,22 @@ def load_text_full() -> dict[str, str]:
         Path("vendor/assets/text/en/text.json").read_text(encoding="utf-8")
     )
     return {entry["id"]: entry["text"] for entry in raw}
+
+
+@cache
+def _load_text_buckets() -> dict[str, dict[str, str]]:
+    buckets: dict[str, dict[str, str]] = {}
+    for id_, text in load_text_full().items():
+        if "@" not in id_:
+            continue
+        prefix, _, key = id_.partition("@")
+        buckets.setdefault(prefix, {})[key] = text
+    return buckets
+
+
+@cache
+def load_text(name: str) -> dict[str, str]:
+    return _load_text_buckets().get(name, {})
 
 
 @cache
