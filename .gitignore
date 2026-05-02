@@ -6,9 +6,12 @@ dist/
 wheels/
 *.egg-info
 StellaSoraBot/
-assets/
 vendor/
 .idea/
+user-passwords.py
+apicache/
+*.lwp
+throttle.ctrl
 
 # Virtual environments
 .venv

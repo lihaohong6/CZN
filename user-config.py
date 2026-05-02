@@ -1,9 +1,9 @@
-family_files['ss'] = 'https://czn.miraheze.org/w/api.php'
+family_files['czn'] = 'https://czn.miraheze.org/w/api.php'
 
 family = 'czn'
 mylang = 'czn'
 
-usernames['ss']['ss'] = 'PetraMagna'
+usernames['czn']['czn'] = 'PetraMagna'
 password_file = "user-passwords.py"
 
 minthrottle = 0

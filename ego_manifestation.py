@@ -63,3 +63,11 @@ def save_ego_manifestations():
             continue
         obj[characters[char_id].name] = ego.levels
     save_json_page("Module:EgoManifestation/data.json", obj, summary="update ego manifestations")
+
+
+def main():
+    save_ego_manifestations()
+
+
+if __name__ == "__main__":
+    main()
