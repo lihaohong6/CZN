@@ -12,7 +12,7 @@ class Item:
     desc: str
 
 @cache
-def parse_items() -> dict[int, Item]:
+def parse_items() -> dict[str, Item]:
     result = {}
     item_text = load_text("item")
     for key, name in item_text.items():
@@ -20,8 +20,8 @@ def parse_items() -> dict[int, Item]:
         if prefix == "name":
             if id_str.isnumeric():
                 item_id = int(id_str)
-                desc = item_text.get(f'tooltip@{id_str}')
-                result[item_id] = Item(id=item_id, name=name, desc=desc)
+                desc = item_text.get(f'desc@{id_str}')
+                result[name] = Item(id=item_id, name=name, desc=desc)
     return result
 
 def save_item_info():
