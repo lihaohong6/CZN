@@ -15,6 +15,7 @@ def dump_json(obj):
             if isinstance(o, enum.Enum):
                 return o.value
             return super().default(o)
+
     return json.dumps(obj, indent=4, cls=EnhancedJSONEncoder)
 
 
@@ -29,4 +30,15 @@ def save_json_page(page: Page | str, obj, summary: str = "update json page"):
     modified = dump_json(obj)
     if original != modified:
         page.text = modified
+        page.save(summary=summary)
+
+
+def save_wikitext_page(
+    page: Page | str, text: str, summary: str = "update wikitext page"
+):
+    if isinstance(page, str):
+        page = Page(s, page)
+    original = page.text or ""
+    if original.strip() != text.strip():
+        page.text = text
         page.save(summary=summary)

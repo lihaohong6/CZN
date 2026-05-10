@@ -4,6 +4,7 @@ from functools import cache
 from pathlib import Path
 
 db_root = Path("vendor/assets/db")
+assets_root = Path("vendor/assets")
 
 
 def resolve_text_markup(text: str) -> str:
