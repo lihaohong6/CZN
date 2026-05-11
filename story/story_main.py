@@ -115,14 +115,14 @@ def save_story_faces():
             uploads.append(UploadRequest(
                 source=source,
                 target=f"Profile_{eng_name}.png",
-                text="[[Category:Character profile pictures]]",
+                text="{{FairUse}}\n[[Category:Character profile pictures]]",
                 summary="upload character profile picture",
             ))
 
     process_uploads(uploads)
 
 
-def save_story():
+def save_main_story():
     from wiki_utils import save_wikitext_page
 
     episodes = get_main_episodes()
@@ -140,27 +140,10 @@ def save_story():
 
 
 def main():
-    episodes = get_main_episodes()
-    print(f"Found {len(episodes)} episodes")
-    for ep in episodes:
-        print(
-            f"  Part {ep.part} {ep.episode_key}: "
-            f"{ep.display_title!r} -> Story/{ep.name} ({len(ep.scene_ids)} scenes)"
-        )
-    print()
-
-    by_part = _group_by_part(episodes)
-
-    for part in sorted(by_part):
-        print(part_overview_wikitext(part, by_part[part]))
-        print()
-
-    ep = episodes[0]
-    print(f"--- First few lines of Story/{ep.name} ---")
-    wt = episode_to_wikitext(ep)
-    for line in wt.split("\n")[:20]:
-        print(line)
+    save_story_faces()
+    save_event_story()
+    save_main_story()
 
 
 if __name__ == "__main__":
-    save_event_story()
+    main()
