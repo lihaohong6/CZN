@@ -1,6 +1,12 @@
-from story.story_parser import get_main_episodes, get_story_scenes
+from story.story_parser import (
+    get_main_episodes,
+    get_story_scenes,
+    get_event_episodes,
+    extract_episode_name,
+    extract_display_title,
+)
 from story.story_types import StoryEpisode
-from story.story_wikitext import episode_to_wikitext, part_overview_wikitext
+from story.story_wikitext import episode_to_wikitext, part_overview_wikitext, event_overview_wikitext
 
 
 def _group_by_part(episodes: list[StoryEpisode]) -> dict[int, list[StoryEpisode]]:
@@ -28,6 +34,53 @@ def save_story_episodes(count: int = 5):
                 all_uploads.extend(scene.uploads)
 
     process_uploads(all_uploads)
+
+
+def save_event_story():
+    from upload_utils import process_uploads
+    from wiki_utils import save_wikitext_page
+
+    scenes = get_story_scenes()
+
+    for group in get_event_episodes()[2:]:
+        season_name = group.display_title
+        for sep in (" – ", " - "):
+            if sep in season_name:
+                season_name = season_name.split(sep, 1)[1].strip()
+                break
+
+        all_uploads = []
+        chapter_data: list[tuple[int, list[StoryEpisode], list[StoryEpisode]]] = []
+
+        for chapter in group.chapters:
+            main_eps: list[StoryEpisode] = []
+            sub_eps: list[StoryEpisode] = []
+            for sid in chapter.scene_ids:
+                scene = scenes.get(sid)
+                if scene is None:
+                    continue
+                raw_title = scene.title
+                name = extract_episode_name(raw_title) if raw_title else sid
+                display = extract_display_title(raw_title) if raw_title else sid
+                ep = StoryEpisode(
+                    part=chapter.part,
+                    episode_key=sid,
+                    name=name,
+                    display_title=display,
+                    scene_ids=[sid],
+                )
+                wt = episode_to_wikitext(ep)
+                save_wikitext_page(f"{season_name}/Story/{name}", wt, summary="update event story page")
+                all_uploads.extend(scene.uploads)
+                if sid.startswith("main_"):
+                    main_eps.append(ep)
+                else:
+                    sub_eps.append(ep)
+            chapter_data.append((chapter.part, main_eps, sub_eps))
+
+        overview = event_overview_wikitext(season_name, chapter_data)
+        save_wikitext_page(f"{season_name}/Story", overview, summary="update event story overview")
+        process_uploads(all_uploads)
 
 
 def save_story():
@@ -71,4 +124,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    save_event_story()

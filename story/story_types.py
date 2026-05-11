@@ -61,6 +61,13 @@ class StoryEpisode:
     scene_ids: list[str]
 
 
+@dataclass
+class EventStoryGroup:
+    event_id: str
+    display_title: str
+    chapters: list[StoryEpisode]
+
+
 SKIP_TEXT_TYPES = {"EMPTY", "CLEAR", "FIRST_SKILL_UI", "UNI_RECEIVE"}
 
 CHOICE_TEXT_TYPES = {

@@ -11,6 +11,7 @@ from story.story_types import (
     StoryElement,
     StoryElementType,
     StoryEpisode,
+    EventStoryGroup,
     SKIP_TEXT_TYPES,
     CHOICE_TEXT_TYPES,
     NAMED_TEXT_TYPE_MAP,
@@ -18,7 +19,7 @@ from story.story_types import (
     add_if_present,
 )
 from upload_utils import UploadRequest
-from utils import assets_root, db_root, load_db
+from utils import assets_root, db_root, load_db, load_text
 
 
 _RES_TYPE_EXT: dict[str, str] = {
@@ -173,6 +174,17 @@ def step_to_elements(
     return elements
 
 
+def image_name_to_cat(name: str) -> str | None:
+    name = name.lower()
+    if name.startswith("bg"):
+        return "Background images"
+    if name.startswith("illust"):
+        return "Story illustrations"
+    if name.startswith("frame"):
+        return "Story popups"
+    return "Story images"
+
+
 def parse_story_scene(entry: dict, resources: dict[str, dict[str, str]]) -> StoryScene:
     scene_id = entry["id"]
     raw_steps = json.loads(entry["info"])
@@ -212,10 +224,11 @@ def parse_story_scene(entry: dict, resources: dict[str, dict[str, str]]) -> Stor
         source: Path | None = elem.args.get("source")
         if source is None:
             continue
+        cat = image_name_to_cat(name)
         uploads.append(UploadRequest(
             source=source,
             target=source.name,
-            text="",
+            text=f"[[Category:{cat}]]",
             summary="upload story background",
         ))
 
@@ -253,7 +266,7 @@ def _natural_sort_key(s: str) -> list:
     return [int(p) if p.isdigit() else p for p in parts]
 
 
-def _extract_episode_name(title: str) -> str:
+def extract_episode_name(title: str) -> str:
     title = title.strip()
     for sep in ("<br><br>", " - "):
         if sep in title:
@@ -261,7 +274,7 @@ def _extract_episode_name(title: str) -> str:
     return title
 
 
-def _extract_display_title(title: str) -> str:
+def extract_display_title(title: str) -> str:
     title = title.strip()
     if "<br><br>" in title:
         prefix, name = title.split("<br><br>", 1)
@@ -325,15 +338,15 @@ def get_main_episodes() -> list[StoryEpisode]:
     name_counts: dict[str, int] = {}
     for gk in sorted(merged.keys()):
         g = merged[gk]
-        name = _extract_episode_name(g.get("title", gk))
+        name = extract_episode_name(g.get("title", gk))
         name_counts[name] = name_counts.get(name, 0) + 1
 
     episodes: list[StoryEpisode] = []
     for gk in sorted(merged.keys(), key=lambda k: _natural_sort_key(k)):
         g = merged[gk]
         raw_title = g.get("title", "")
-        name = _extract_episode_name(raw_title) if raw_title else gk
-        display = _extract_display_title(raw_title) if raw_title else gk
+        name = extract_episode_name(raw_title) if raw_title else gk
+        display = extract_display_title(raw_title) if raw_title else gk
 
         if name_counts.get(name, 0) > 1:
             name = f"{name} (Part {g['part']})"
@@ -351,3 +364,87 @@ def get_main_episodes() -> list[StoryEpisode]:
         )
 
     return episodes
+
+
+@cache
+def _load_disaster_chapters() -> list[dict]:
+    return [e for e in load_db("story_map@story_map_chapter") if e.get("type") == "disaster"]
+
+
+@cache
+def _load_story_map_nodes() -> dict[str, dict]:
+    return {e["id"]: e for e in load_db("story_map@story_map_node")}
+
+
+@cache
+def _load_contents_by_group() -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    for entry in load_db("story_map_contents@story_map_contents"):
+        group = entry.get("group", "")
+        if group:
+            result.setdefault(group, []).append(entry)
+    return result
+
+
+def _chapter_scene_ids(
+    base_key: str,
+    nodes: dict[str, dict],
+    contents_by_group: dict[str, list[dict]],
+) -> list[str]:
+    if base_key == "none":
+        return []
+    prefix = base_key + "_"
+    pairs: list[tuple[str, str]] = []
+    for node_id, node in nodes.items():
+        if not node_id.startswith(prefix):
+            continue
+        group = node.get("node_multiple_link", "none")
+        if group == "none":
+            continue
+        for content in contents_by_group.get(group, []):
+            link = content.get("contents_multiple_link", "none")
+            if content.get("contents_type") == "EPISODE_CONTENT_STORY" and link != "none":
+                pairs.append((content["id"], link))
+    pairs.sort(key=lambda x: _natural_sort_key(x[0]))
+    return [link for _, link in pairs]
+
+
+@cache
+def get_event_episodes() -> list[EventStoryGroup]:
+    disaster_text = load_text("disaster_schedule")
+    nodes = _load_story_map_nodes()
+    contents_by_group = _load_contents_by_group()
+
+    events: dict[str, list[dict]] = {}
+    for chapter in _load_disaster_chapters():
+        event_id = "_".join(chapter["id"].split("_")[:2])
+        events.setdefault(event_id, []).append(chapter)
+
+    result: list[EventStoryGroup] = []
+    for event_id in sorted(events.keys()):
+        event_title = disaster_text.get(f"content_desc@{event_id}", event_id)
+        chapters_raw = sorted(events[event_id], key=lambda c: int(c.get("number", "0")))
+
+        chapters: list[StoryEpisode] = []
+        for chapter in chapters_raw:
+            base_key = chapter.get("link_story_map_node_key", "none")
+            scene_ids = _chapter_scene_ids(base_key, nodes, contents_by_group)
+            if not scene_ids:
+                continue
+            chapter_name = chapter.get("name", chapter["id"])
+            chapters.append(StoryEpisode(
+                part=int(chapter.get("number", "0")),
+                episode_key=chapter["id"],
+                name=chapter_name,
+                display_title=chapter_name,
+                scene_ids=scene_ids,
+            ))
+
+        if chapters:
+            result.append(EventStoryGroup(
+                event_id=event_id,
+                display_title=event_title,
+                chapters=chapters,
+            ))
+
+    return result
