@@ -5,7 +5,7 @@ from story.story_parser import (
     extract_episode_name,
     extract_display_title,
 )
-from story.story_types import StoryEpisode, StoryElementType
+from story.story_types import StoryEpisode
 from story.story_wikitext import episode_to_wikitext, part_overview_wikitext, event_overview_wikitext
 
 
@@ -83,45 +83,6 @@ def save_event_story():
         process_uploads(all_uploads)
 
 
-def save_story_faces():
-    from upload_utils import process_uploads, UploadRequest
-    from utils import assets_root, load_db
-
-    actor_map: dict[str, tuple[str, str]] = {}
-    for entry in load_db("actor@actor"):
-        pm = entry.get("portrait_mini", "")
-        if not pm or pm == "NONE":
-            continue
-        actor_map[entry["id"]] = (entry.get("name", ""), pm)
-
-    scenes = get_story_scenes()
-    seen_names: set[str] = set()
-    uploads: list[UploadRequest] = []
-
-    for scene in scenes.values():
-        for elem in scene.elements:
-            if elem.type not in (StoryElementType.DIALOGUE, StoryElementType.MONOLOGUE):
-                continue
-            talker = elem.args.get("talker", "")
-            if talker not in actor_map:
-                continue
-            eng_name, portrait_mini = actor_map[talker]
-            if not eng_name or eng_name in seen_names:
-                continue
-            source = assets_root / f"face/character/{portrait_mini}.png"
-            if not source.exists():
-                continue
-            seen_names.add(eng_name)
-            uploads.append(UploadRequest(
-                source=source,
-                target=f"Profile_{eng_name}.png",
-                text="{{FairUse}}\n[[Category:Character profile pictures]]",
-                summary="upload character profile picture",
-            ))
-
-    process_uploads(uploads)
-
-
 def save_main_story():
     from wiki_utils import save_wikitext_page
 
@@ -140,7 +101,6 @@ def save_main_story():
 
 
 def main():
-    save_story_faces()
     save_event_story()
     save_main_story()
 
