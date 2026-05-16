@@ -26,15 +26,9 @@ def _skill_eff_db_names() -> list[str]:
 SORT_MAP = {
     "SORT_START": "Start",
     "SORT_UNIQUE": "Unique",
-    "SORT_POWER_STRIKE": "Power Strike",
-    "SORT_EIDOLON": "Eidolon",
+    "SORT_FORMATION": "Formation",
     "SORT_COLLAPSE": "Collapse",
     "SORT_COLLAPSE_SKILL": "Collapse Skill",
-    "SORT_PUBLIC": "Public",
-    "SORT_SUPPORT": "Support",
-    "SORT_MONSTER_COMMON": "Monster",
-    "SORT_MONSTER_RARE": "Monster",
-    "SORT_MONSTER_UNIQUE": "Monster",
 }
 
 VARIANT_ORDER = {"srt": 0, "uni": 1, "eps": 2, "col": 3, "bhc": 4}
@@ -144,11 +138,6 @@ def get_base_card_id(card_id: str) -> str:
     return re.sub(r"_(?:pot|rsp\d+|lbk|bhc)$", "", card_id)
 
 
-VARIANT_RE = re.compile(
-    r"c_\d+_(?:srt|uni|eps|cre|col\d*|lbk|bhc)\d*(?:_(?:pot|rsp\d+|lbk|bhc|mut\d+))?$"
-)
-
-
 def card_sort_key(card_id: str):
     m = re.match(
         r"c_\d+_(srt|uni|eps|col|bhc|cre|lbk)(\d*)(?:_(pot|rsp\d+|lbk|bhc|mut\d+))?$",
@@ -230,7 +219,7 @@ def parse_cards() -> dict[int, list[dict]]:
                 cost = entry.get("cost", "")
                 try:
                     cost = int(cost)
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     pass
                 card_data["cost"] = cost
                 card_data["rarity"] = entry.get("rarity", "")
