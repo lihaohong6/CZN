@@ -6,14 +6,14 @@ from story.story_parser import (
     extract_display_title,
 )
 from story.story_types import StoryEpisode
-from story.story_wikitext import episode_to_wikitext, part_overview_wikitext, event_overview_wikitext
+from story.story_wikitext import episode_to_wikitext, chapter_overview_wikitext
 
 
-def _group_by_part(episodes: list[StoryEpisode]) -> dict[int, list[StoryEpisode]]:
-    by_part: dict[int, list[StoryEpisode]] = {}
+def _group_by_act(episodes: list[StoryEpisode]) -> dict[int, list[StoryEpisode]]:
+    by_act: dict[int, list[StoryEpisode]] = {}
     for ep in episodes:
-        by_part.setdefault(ep.part, []).append(ep)
-    return by_part
+        by_act.setdefault(ep.act, []).append(ep)
+    return by_act
 
 
 def save_story_episodes(count: int = 5):
@@ -63,7 +63,8 @@ def save_event_story():
                 name = extract_episode_name(raw_title) if raw_title else sid
                 display = extract_display_title(raw_title) if raw_title else sid
                 ep = StoryEpisode(
-                    part=chapter.part,
+                    act=1,
+                    chapter=chapter.chapter,
                     episode_key=sid,
                     name=name,
                     display_title=display,
@@ -76,9 +77,9 @@ def save_event_story():
                     main_eps.append(ep)
                 else:
                     sub_eps.append(ep)
-            chapter_data.append((chapter.part, main_eps, sub_eps))
+            chapter_data.append((chapter.act, main_eps, sub_eps))
 
-        overview = event_overview_wikitext(season_name, chapter_data)
+        overview = chapter_overview_wikitext(season_name, chapter_data)
         save_wikitext_page(f"{season_name}/Story", overview, summary="update event story overview")
         process_uploads(all_uploads)
 
@@ -87,21 +88,30 @@ def save_main_story():
     from wiki_utils import save_wikitext_page
 
     episodes = get_main_episodes()
-    by_part = _group_by_part(episodes)
+    by_act = _group_by_act(episodes)
 
-    for part, part_eps in sorted(by_part.items()):
-        overview = part_overview_wikitext(part, part_eps)
-        save_wikitext_page(
-            f"Story/Part {part}", overview, summary="update story overview"
-        )
+    for act, part_eps in sorted(by_act.items()):
+        chapter_map: dict[int, tuple[list[StoryEpisode], list[StoryEpisode]]] = {}
+        for ep in part_eps:
+            if ep.chapter not in chapter_map:
+                chapter_map[ep.chapter] = ([], [])
+            is_main = any(sid.startswith("main_") for sid in ep.scene_ids)
+            (chapter_map[ep.chapter][0] if is_main else chapter_map[ep.chapter][1]).append(ep)
 
-    for ep in episodes:
-        wt = episode_to_wikitext(ep)
-        save_wikitext_page(f"Story/{ep.name}", wt, summary="update story page")
+        chapter_tuples: list[tuple[int, list[StoryEpisode], list[StoryEpisode]]] = [
+            (chapter_num, *chapter_map[chapter_num]) for chapter_num in sorted(chapter_map)
+        ]
+
+        overview = chapter_overview_wikitext(act, chapter_tuples)
+        save_wikitext_page(f"Story/Act {act}", overview, summary="update story overview")
+
+        for ep in part_eps:
+            wt = episode_to_wikitext(ep)
+            save_wikitext_page(f"Story/Act {act}/{ep.name}", wt, summary="update story page")
 
 
 def main():
-    save_event_story()
+    # save_event_story()
     save_main_story()
 
 

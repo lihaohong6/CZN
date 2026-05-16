@@ -288,6 +288,7 @@ def extract_display_title(title: str) -> str:
 
 
 _SCENE_ID_KEY_RE = re.compile(r"^main_part(\d+)_(ch\w+?)(?:_\w+)?$")
+_SUB_SCENE_ID_KEY_RE = re.compile(r"^sub_part(\d+)_(ch\w+?)(?:_\w+)?$")
 
 
 @cache
@@ -296,15 +297,22 @@ def get_main_episodes() -> list[StoryEpisode]:
 
     groups: dict[str, dict] = {}
     for sid in sorted(scenes, key=lambda s: _natural_sort_key(s)):
-        if not sid.startswith("main_"):
+        if sid.startswith("main_"):
+            m = _SCENE_ID_KEY_RE.match(sid)
+            if not m:
+                continue
+            part = int(m.group(1))
+            ep_key = m.group(2)
+            group_id = f"part{part}_{ep_key}"
+        elif sid.startswith("sub_"):
+            m = _SUB_SCENE_ID_KEY_RE.match(sid)
+            if not m:
+                continue
+            part = int(m.group(1))
+            ep_key = m.group(2)
+            group_id = f"sub_part{part}_{ep_key}"
+        else:
             continue
-        m = _SCENE_ID_KEY_RE.match(sid)
-        if not m:
-            continue
-        part = int(m.group(1))
-        ep_key = m.group(2)
-
-        group_id = f"part{part}_{ep_key}"
         if group_id not in groups:
             groups[group_id] = {"part": part, "ep_key": ep_key, "scene_ids": []}
 
@@ -348,14 +356,12 @@ def get_main_episodes() -> list[StoryEpisode]:
         name = extract_episode_name(raw_title) if raw_title else gk
         display = extract_display_title(raw_title) if raw_title else gk
 
-        if name_counts.get(name, 0) > 1:
-            name = f"{name} (Part {g['part']})"
-            if "Episode" in display or "Prologue" in display or "Epilogue" in display:
-                display = f"{display} (Part {g['part']})"
-
+        m = re.match(r"ch(\d{2})\d{2}", g["ep_key"])
+        chapter = int(m.group(1)) if m else 0
         episodes.append(
             StoryEpisode(
-                part=g["part"],
+                act=g["part"],
+                chapter=chapter,
                 episode_key=g["ep_key"],
                 name=name,
                 display_title=display,
@@ -432,8 +438,10 @@ def get_event_episodes() -> list[EventStoryGroup]:
             if not scene_ids:
                 continue
             chapter_name = chapter.get("name", chapter["id"])
+            act_num = int(chapter.get("number", "0"))
             chapters.append(StoryEpisode(
-                part=int(chapter.get("number", "0")),
+                act=act_num,
+                chapter=act_num,
                 episode_key=chapter["id"],
                 name=chapter_name,
                 display_title=chapter_name,

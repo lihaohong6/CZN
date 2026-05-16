@@ -54,7 +54,8 @@ class StoryScene:
 
 @dataclass
 class StoryEpisode:
-    part: int
+    act: int
+    chapter: int
     episode_key: str
     name: str
     display_title: str

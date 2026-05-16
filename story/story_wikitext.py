@@ -79,28 +79,21 @@ def episode_to_wikitext(episode: StoryEpisode) -> str:
     return "{{StoryTop}}\n{{StoryContainer|\n\n" + "\n{{StoryDialogueSeparator}}\n".join(parts) + "\n\n}}\n{{StoryBottom}}"
 
 
-def part_overview_wikitext(part: int, episodes: list[StoryEpisode]) -> str:
-    lines = [f"== Part {part} =="]
-    for ep in episodes:
-        lines.append(f"* [[Story/{ep.name}|{ep.display_title}]]")
-    return "\n".join(lines)
-
-
-def event_overview_wikitext(
-    season_name: str,
+def chapter_overview_wikitext(
+    act: int,
     chapters: list[tuple[int, list[StoryEpisode], list[StoryEpisode]]],
 ) -> str:
     lines: list[str] = []
-    for act_num, main_eps, sub_eps in chapters:
+    for chapter_num, main_eps, sub_eps in chapters:
         if lines:
             lines.append("")
-        lines.append(f"== Chapter {act_num} ==")
+        lines.append(f"== Chapter {chapter_num} ==")
         if main_eps:
             lines.append("=== Main story ===")
             for ep in main_eps:
-                lines.append(f"* [[{season_name}/Story/{ep.name}|{ep.display_title}]]")
+                lines.append(f"* [[Story/Act {act}/{ep.name}|{ep.display_title}]]")
         if sub_eps:
             lines.append("=== Side stories ===")
             for ep in sub_eps:
-                lines.append(f"* [[{season_name}/Story/{ep.name}|{ep.display_title}]]")
+                lines.append(f"* [[Story/Act {act}/{ep.name}|{ep.display_title}]]")
     return "\n".join(lines)
