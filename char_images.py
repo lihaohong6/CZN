@@ -1,3 +1,4 @@
+from characters import parse_characters
 from upload_utils import process_uploads, UploadRequest
 from utils import assets_root, load_db
 from story.story_parser import get_story_scenes
@@ -41,19 +42,17 @@ def save_story_faces():
 
 
 def save_collapse_illustrations():
-    from characters import parse_character_info
-
-    chars = parse_character_info()
+    chars = parse_characters()
     collapse_dir = assets_root / "collapse/collapse_illustration"
     uploads: list[UploadRequest] = []
     for i in (1, 2):
-        for char_id, info in sorted(chars.items()):
+        for char_id, info in chars.items():
             source = collapse_dir / f"collapse_{char_id}_0{i}.png"
             if not source.exists():
                 continue
             uploads.append(UploadRequest(
                 source=source,
-                target=f"{info['name']} Collapse {i}.png",
+                target=f"{info.name} Collapse {i}.png",
                 text="{{FairUse}}\n[[Category:Collapse illustrations]]",
                 summary="upload collapse illustration",
             ))
@@ -61,9 +60,28 @@ def save_collapse_illustrations():
     process_uploads(uploads)
 
 
+def save_combatant_portraits():
+    chars = parse_characters()
+    portrait_dir = assets_root / "face/character"
+    uploads: list[UploadRequest] = []
+    for char_id, info in chars.items():
+        source = portrait_dir / f"portrait_character_{char_id}.png"
+        if not source.exists():
+            continue
+        uploads.append(UploadRequest(
+            source=source,
+            target=f"{info.name} Portrait.png",
+            text="{{FairUse}}\n[[Category:Character portraits]]",
+            summary="upload combatant portrait",
+        ))
+
+    process_uploads(uploads)
+
+
 def main():
     save_story_faces()
     save_collapse_illustrations()
+    save_combatant_portraits()
 
 
 if __name__ == "__main__":
