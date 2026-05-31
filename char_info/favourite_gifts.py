@@ -2,8 +2,8 @@ from functools import cache
 
 from characters import parse_characters
 from item import parse_items
-from utils import load_db
-from wiki_utils import save_json_page
+from utils.utils import load_db
+from utils.wiki_utils import save_json_page
 
 
 @cache

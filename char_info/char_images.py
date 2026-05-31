@@ -1,6 +1,6 @@
 from characters import parse_characters
-from upload_utils import process_uploads, UploadRequest
-from utils import assets_root, load_db
+from utils.upload_utils import process_uploads, UploadRequest
+from utils.utils import assets_root, load_db
 from story.story_parser import get_story_scenes
 from story.story_types import StoryElementType
 

@@ -1,6 +1,6 @@
-from cards import save_cards
-from characters import save_character_info
-from ego_manifestation import save_ego_manifestations
+from char_info.cards import save_cards
+from char_info.characters import save_character_info
+from char_info.ego_manifestation import save_ego_manifestations
 
 
 def main():

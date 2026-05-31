@@ -3,8 +3,8 @@ import re
 from functools import cache
 from pathlib import Path
 
-db_root = Path("vendor/assets/db")
-assets_root = Path("vendor/assets")
+db_root = Path("../vendor/assets/db")
+assets_root = Path("../vendor/assets")
 
 
 def resolve_text_markup(text: str) -> str:
@@ -19,7 +19,7 @@ def resolve_text_markup(text: str) -> str:
 @cache
 def load_text_full() -> dict[str, str]:
     raw = json.loads(
-        Path("vendor/assets/text/en/text.json").read_text(encoding="utf-8")
+        Path("../vendor/assets/text/en/text.json").read_text(encoding="utf-8")
     )
     return {entry["id"]: entry["text"] for entry in raw}
 

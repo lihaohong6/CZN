@@ -17,8 +17,8 @@ def _group_by_act(episodes: list[StoryEpisode]) -> dict[int, list[StoryEpisode]]
 
 
 def save_story_episodes(count: int = 5):
-    from upload_utils import process_uploads
-    from wiki_utils import save_wikitext_page
+    from utils.upload_utils import process_uploads
+    from utils.wiki_utils import save_wikitext_page
 
     episodes = get_main_episodes()[:count]
     scenes = get_story_scenes()
@@ -37,8 +37,8 @@ def save_story_episodes(count: int = 5):
 
 
 def save_event_story():
-    from upload_utils import process_uploads
-    from wiki_utils import save_wikitext_page
+    from utils.upload_utils import process_uploads
+    from utils.wiki_utils import save_wikitext_page
 
     scenes = get_story_scenes()
 
@@ -85,7 +85,7 @@ def save_event_story():
 
 
 def save_main_story():
-    from wiki_utils import save_wikitext_page
+    from utils.wiki_utils import save_wikitext_page
 
     episodes = get_main_episodes()
     by_act = _group_by_act(episodes)

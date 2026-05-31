@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from functools import cache
 
-from utils import load_db, load_text, resolve_text_markup
-from wiki_utils import save_json_page
+from utils.utils import load_db, load_text, resolve_text_markup
+from utils.wiki_utils import save_json_page
 
 INFO_FIELDS = {
     "background_text",
