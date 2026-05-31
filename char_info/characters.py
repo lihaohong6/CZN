@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 
 from utils import load_db, load_text, resolve_text_markup
@@ -24,6 +24,13 @@ INFO_FIELDS = {
 class Character:
     id: int
     name: str
+    english_name: str = ""
+    rarity: str = ""
+    gender: str = ""
+    affiliation: str = ""
+    class_: str = field(default="")
+    attribute: str = ""
+    playable: bool = field(default=False)
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -37,6 +44,27 @@ def parse_characters() -> dict[int, Character]:
         if prefix == "name":
             char_id = int(id_str)
             result[char_id] = Character(id=char_id, name=name)
+
+    text = load_text("char_base")
+    for entry in load_db("char_base@char_base"):
+        char_id = int(entry["id"])
+        if char_id not in result:
+            continue
+        char = result[char_id]
+        char.english_name = text.get(f"english_name@{char_id}", "")
+        char.rarity = entry.get("rarity", "").removeprefix("RARITY_")
+        char.gender = entry.get("gender_type", "").removeprefix("GENDER_").title()
+        char.affiliation = entry.get("link_faction_id", "")
+        char.playable = entry.get("char_use_playable") == "YES"
+
+    for entry in load_db("char_base@char_combatant"):
+        char_id = int(entry["id"])
+        if char_id not in result:
+            continue
+        char = result[char_id]
+        char.class_ = entry.get("link_base_class_define_id", "").title()
+        char.attribute = entry.get("link_ego_type_id", "").title()
+
     return result
 
 
