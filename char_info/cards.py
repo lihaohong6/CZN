@@ -1,7 +1,7 @@
 import re
 from functools import cache
 
-from characters import parse_characters
+from char_info.characters import parse_characters
 from utils.utils import db_root, load_db, load_text, resolve_text_markup
 from utils.wiki_utils import save_json_page
 

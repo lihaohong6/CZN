@@ -2,8 +2,8 @@ from string import Template
 
 from pywikibot import Page
 
-from characters import parse_characters, parse_character_info
-from favourite_gifts import parse_favourite_gifts
+from char_info.characters import parse_characters, parse_character_info
+from char_info.favourite_gifts import parse_favourite_gifts
 from utils.wiki_utils import save_wikitext_page, s
 
 
