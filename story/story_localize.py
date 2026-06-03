@@ -1,7 +1,7 @@
 import re
 from functools import cache
 
-from utils import load_text
+from utils.utils import load_text
 
 
 PROTAGONIST_MARKERS = {

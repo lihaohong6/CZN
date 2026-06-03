@@ -18,8 +18,8 @@ from story.story_types import (
     GENERIC_DIALOGUE_TYPES,
     add_if_present,
 )
-from upload_utils import UploadRequest
-from utils import assets_root, db_root, load_db, load_text
+from utils.upload_utils import UploadRequest
+from utils.utils import assets_root, db_root, load_db, load_text
 
 
 _RES_TYPE_EXT: dict[str, str] = {

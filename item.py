@@ -1,9 +1,8 @@
-import json
 from dataclasses import dataclass
 from functools import cache
 
-from utils import load_text
-from wiki_utils import save_json_page
+from utils.utils import load_text
+from utils.wiki_utils import save_json_page
 
 @dataclass
 class Item:

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from upload_utils import UploadRequest
+from utils.upload_utils import UploadRequest
 
 
 class StoryElementType(Enum):
