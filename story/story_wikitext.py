@@ -9,9 +9,11 @@ def _escape_wikitext(text: str) -> str:
 
 def _story_dialogue(text: str, talker: str = "") -> str:
     text = _escape_wikitext(text)
-    if talker:
+    if talker and text:
         return f"{{{{StoryDialogue|name={talker}|message={text}}}}}"
-    return f"{{{{StoryDialogue|message={text}}}}}"
+    elif text == "":
+        return ""
+    return f"{{{{StoryDialogueDefaultImage|message={text}}}}}"
 
 
 def element_to_wikitext(element: StoryElement) -> list[str]:
