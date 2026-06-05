@@ -1,10 +1,15 @@
 from string import Template
 
-from pywikibot import Page
-
-from char_info.characters import parse_characters, parse_character_info
+from char_info.characters import combatant_pages, parse_characters, parse_character_info
 from char_info.favourite_gifts import parse_favourite_gifts
-from utils.wiki_utils import save_wikitext_page, s
+from utils.wiki_utils import save_wikitext_page
+
+
+def possessive_pronoun(gender: str) -> str:
+    return {
+        "Female": "her",
+        "Male": "his",
+    }.get(gender, "their")
 
 
 def auto_create_combatant_pages():
@@ -65,6 +70,7 @@ def auto_create_combatant_pages():
     characters = parse_characters()
     char_info = parse_character_info()
     favourite_gifts = parse_favourite_gifts()
+    pages = {p.title(with_ns=False): p for p in combatant_pages()}
 
     for char in characters.values():
         if not char.playable:
@@ -95,14 +101,42 @@ def auto_create_combatant_pages():
             voiceCN=clean_cv(info.get("cv_zhs")),
         )
 
-        p = Page(s, char.name)
+        p = pages[char.name]
         if p.exists():
             continue
-        save_wikitext_page(char.name, text, summary="auto-create combatant page")
+        save_wikitext_page(p, text, summary="auto-create combatant page")
+
+
+def auto_create_counseling_pages():
+    template = Template("""{{Combatant NavTab}}
+This page is about $name's counseling to relieve $pronoun trauma.
+----
+{{Counseling|$name}}
+[[Category:Counseling pages]]
+""")
+
+    characters = parse_characters()
+    pages = {p.title(with_ns=False): p for p in combatant_pages("/counseling")}
+
+    for char in characters.values():
+        if not char.playable:
+            continue
+
+        page_title = f"{char.name}/counseling"
+        p = pages[page_title]
+        if p.exists():
+            continue
+
+        text = template.safe_substitute(
+            name=char.name,
+            pronoun=possessive_pronoun(char.gender),
+        )
+        save_wikitext_page(p, text, summary="auto-create counseling page")
 
 
 def main():
     auto_create_combatant_pages()
+    auto_create_counseling_pages()
 
 
 if __name__ == '__main__':

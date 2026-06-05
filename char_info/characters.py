@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
 from functools import cache
 
+from pywikibot import Page
+from pywikibot.pagegenerators import PreloadingGenerator
+
 from utils.utils import load_db, load_text, resolve_text_markup
-from utils.wiki_utils import save_json_page
+from utils.wiki_utils import save_json_page, s
 
 INFO_FIELDS = {
     "background_text",
@@ -66,6 +69,15 @@ def parse_characters() -> dict[int, Character]:
         char.attribute = entry.get("link_ego_type_id", "").title()
 
     return result
+
+
+def combatant_pages(page_suffix: str = "") -> list[Page]:
+    pages = [
+        Page(s, f"{char.name}{page_suffix}")
+        for char in parse_characters().values()
+        if char.playable
+    ]
+    return list(PreloadingGenerator(pages))
 
 
 @cache
