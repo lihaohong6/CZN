@@ -12,7 +12,7 @@ def _story_dialogue(text: str, talker: str = "") -> str:
     if talker and text:
         return f"{{{{StoryDialogue|name={talker}|message={text}}}}}"
     elif text == "":
-        return ""
+        return None
     return f"{{{{StoryDialogueDefaultImage|message={text}}}}}"
 
 
@@ -67,7 +67,7 @@ def scene_to_wikitext(scene: StoryScene) -> str:
     lines = []
     for element in scene.elements:
         lines.extend(element_to_wikitext(element))
-    return "\n".join(lines)
+    return "\n".join(item for item in lines if item is not None)
 
 
 def episode_to_wikitext(episode: StoryEpisode) -> str:
