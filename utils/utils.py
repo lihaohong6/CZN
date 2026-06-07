@@ -5,6 +5,8 @@ from pathlib import Path
 
 assets_root = Path("vendor/assets")
 db_root = assets_root / "db"
+game_install_root = Path("/mnt/ssd1/Games/Games/ChaosZeroNightmare/bin")
+sound_root = game_install_root / "appdata/cznlive/data.unpacked/sound"
 
 
 def resolve_text_markup(text: str) -> str:
