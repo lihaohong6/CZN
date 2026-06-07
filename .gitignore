@@ -7,6 +7,7 @@ wheels/
 *.egg-info
 StellaSoraBot/
 vendor/
+exports/
 .idea/
 user-passwords.py
 apicache/
@@ -15,3 +16,4 @@ throttle.ctrl
 
 # Virtual environments
 .venv
+
