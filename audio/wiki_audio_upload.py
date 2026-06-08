@@ -198,7 +198,7 @@ def voice_line_template(line: VoiceLine) -> str:
         f"{key}={escape_template_value(value)}"
         for key, value in fields.items()
     )
-    return "{{Voice|" + args + "}}"
+    return "{{AudioRow|" + args + "}}"
 
 
 def escape_template_value(value: str) -> str:
