@@ -1,0 +1,1515 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spine Asset Preview</title>
+  <link rel="stylesheet" href="https://unpkg.com/@esotericsoftware/spine-player@3.8.*/dist/spine-player.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/EsotericSoftware/spine-runtimes@3.8/spine-ts/player/css/spine-player.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111111;
+      --panel: #1b1b1b;
+      --panel-2: #242424;
+      --line: #363636;
+      --text: #f0f0ec;
+      --muted: #aaa59a;
+      --accent: #4fb286;
+      --player-bg: #10141d;
+      --checker-a: #343434;
+      --checker-b: #202020;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body.export-mode {
+      width: 100vw;
+      height: 100vh;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      border-color: #66615a;
+      background: #2d2d2d;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    button.primary {
+      border-color: #3f8f6d;
+      background: #2d6f55;
+    }
+
+    button[aria-pressed="true"] {
+      border-color: #4fb286;
+      background: #244a3b;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #121212;
+      color: var(--text);
+      padding: 6px 9px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    code {
+      color: #f3d18f;
+      word-break: break-all;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    body.export-mode .app {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    body.export-mode .sidebar,
+    body.export-mode .topbar {
+      display: none;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 750;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .section {
+      display: grid;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .section-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .selector-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .selector-section {
+      margin-top: 0;
+      margin-bottom: 14px;
+    }
+
+    .status {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #141414;
+      padding: 9px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .status.ok {
+      border-color: #386f57;
+      color: #bde8d4;
+    }
+
+    .status.error {
+      border-color: #8f443d;
+      color: #ffc2bb;
+    }
+
+    .related-list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .related-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #141414;
+      padding: 7px 8px;
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: #303030;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge.ok {
+      background: #244a3b;
+      color: #bde8d4;
+    }
+
+    .badge.warn {
+      background: #4a3b22;
+      color: #efd08b;
+    }
+
+    .badge.error {
+      background: #542d2a;
+      color: #ffc2bb;
+    }
+
+    .viewer {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 100vh;
+      background: #151515;
+    }
+
+    body.export-mode .viewer,
+    body.export-mode .stage-wrap,
+    body.export-mode #player {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 50px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .topbar strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .stage-wrap {
+      position: relative;
+      min-height: 0;
+      padding: 14px;
+      background: var(--player-bg);
+    }
+
+    .stage-wrap.transparent {
+      background-color: var(--checker-b);
+      background-image:
+        linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-size: 24px 24px;
+    }
+
+    #player {
+      width: 100%;
+      height: calc(100vh - 78px);
+      min-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    #player .spine-player,
+    #player .spine-player-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    #player .spine-player-canvas {
+      image-rendering: auto;
+    }
+
+    body.export-mode #player .spine-player,
+    body.export-mode #player .spine-player-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      min-height: inherit;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+    }
+
+    @media (max-width: 840px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .viewer {
+        min-height: 520px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      #player {
+        height: 58vh;
+        min-height: 360px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <h1>Spine Asset Preview</h1>
+
+      <section class="section selector-section" aria-labelledby="selectorTitle">
+        <div id="selectorTitle" class="section-title">Model Selector</div>
+        <label>
+          Character
+          <select id="characterSelect">
+            <option value="">Scanning assets...</option>
+          </select>
+        </label>
+        <label>
+          Character Animation
+          <select id="assetSelect">
+            <option value="">Choose a character first</option>
+          </select>
+        </label>
+        <div id="selectorNote" class="selector-note">Scans local Spine JSON files from vendor/assets.</div>
+      </section>
+
+      <div class="field-stack">
+        <label>
+          Skeleton JSON
+          <input id="jsonPath" autocomplete="off" spellcheck="false" value="vendor/assets/model/1004.json">
+        </label>
+
+        <label>
+          Atlas
+          <input id="atlasPath" autocomplete="off" spellcheck="false" value="vendor/assets/model/1004.atlas">
+        </label>
+
+        <div class="row">
+          <button id="loadBtn" class="primary" type="button">Load</button>
+          <button id="replayBtn" type="button">Replay</button>
+        </div>
+
+        <label>
+          Animation
+          <select id="animationSelect">
+            <option value="">Load a skeleton first</option>
+          </select>
+        </label>
+
+        <label>
+          Render Scale
+          <select id="renderScaleSelect">
+            <option value="2">2x</option>
+            <option value="auto">Auto DPR</option>
+            <option value="1">1x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+          </select>
+        </label>
+        <div id="renderInfo" class="selector-note">Canvas will render at 2x backing resolution.</div>
+
+        <div class="row">
+          <button id="loopBtn" type="button" aria-pressed="true">Loop On</button>
+          <button id="bgBtn" type="button" aria-pressed="false">Dark BG</button>
+        </div>
+      </div>
+
+      <section class="section" aria-labelledby="statusTitle">
+        <div id="statusTitle" class="section-title">Status</div>
+        <div id="status" class="status">Ready.</div>
+      </section>
+
+      <section class="section" aria-labelledby="relatedTitle">
+        <div id="relatedTitle" class="section-title">Related Assets</div>
+        <ul id="relatedAssets" class="related-list">
+          <li><span>Atlas PNG pages appear after load.</span><span class="badge">idle</span></li>
+        </ul>
+      </section>
+    </aside>
+
+    <section class="viewer" aria-label="Spine player">
+      <div class="topbar">
+        <div><strong id="assetName">1004</strong> <span id="spineVersion"></span></div>
+        <div id="activePath"><code>vendor/assets/model/1004.json</code></div>
+      </div>
+      <div id="stageWrap" class="stage-wrap">
+        <div id="player">
+          <div class="empty-state">Click Load to preview the selected Spine skeleton.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const initialParams = new URLSearchParams(window.location.search);
+    const runtimeOverride = initialParams.get("runtime");
+    const spineRuntimeUrls = runtimeOverride ? runtimeOverride.split("|").filter(Boolean) : [
+      "https://unpkg.com/@esotericsoftware/spine-player@3.8.*/dist/iife/spine-player.js",
+      "https://cdn.jsdelivr.net/gh/EsotericSoftware/spine-runtimes@3.8/spine-ts/build/spine-player.js"
+    ];
+
+    const fallbackAssets = [
+      {
+        label: "Model 1004",
+        json: "vendor/assets/model/1004.json",
+        atlas: "vendor/assets/model/1004.atlas",
+        anim: "idle"
+      },
+      {
+        label: "Model 1004 Battle Ready",
+        json: "vendor/assets/model/1004_battle_ready.json",
+        atlas: "vendor/assets/model/1004_battle_ready.atlas",
+        anim: "animation"
+      },
+      {
+        label: "Card unique_1004_03",
+        json: "vendor/assets/card/unique_1004_03.json",
+        atlas: "vendor/assets/card/unique_1004_03.atlas",
+        anim: "animation"
+      },
+      {
+        label: "Effect luke_1004_skill_x_ani_4",
+        json: "vendor/assets/effect/luke_1004_skill_x_ani_4.json",
+        atlas: "vendor/assets/effect/luke_1004_skill_x_ani_4.atlas",
+        anim: "animation"
+      }
+    ];
+
+    const assetDirectories = [
+      { path: "vendor/assets/model/", label: "Model" },
+      { path: "vendor/assets/card/", label: "Card" },
+      { path: "vendor/assets/effect/", label: "Effect" }
+    ];
+
+    const spineRuntimeReady = loadSpineRuntime(spineRuntimeUrls);
+
+    const dom = {};
+    const state = {
+      player: null,
+      animations: [],
+      loop: true,
+      transparent: false,
+      renderScale: "2",
+      rendererPatched: false,
+      exportMode: initialParams.get("export") === "1",
+      exportRunning: false,
+      exportSettings: {
+        id: initialParams.get("exportId") || "",
+        captureMode: initialParams.get("captureMode") || "deterministic",
+        animations: (initialParams.get("animations") || "").split(",").filter(Boolean),
+        width: Number(initialParams.get("width") || "0"),
+        height: Number(initialParams.get("height") || "0"),
+        fps: Number(initialParams.get("fps") || "30"),
+        duration: Number(initialParams.get("duration") || "1"),
+        transparent: initialParams.get("transparent") !== "0"
+      },
+      lastJson: "",
+      lastAtlas: "",
+      catalog: [],
+      groups: [],
+      charNames: new Map()
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      for (const id of [
+        "jsonPath",
+        "atlasPath",
+        "loadBtn",
+        "replayBtn",
+        "loopBtn",
+        "bgBtn",
+        "animationSelect",
+        "renderScaleSelect",
+        "renderInfo",
+        "characterSelect",
+        "assetSelect",
+        "selectorNote",
+        "status",
+        "relatedAssets",
+        "player",
+        "assetName",
+        "spineVersion",
+        "activePath",
+        "stageWrap"
+      ]) {
+        dom[id] = document.getElementById(id);
+      }
+
+      bindEvents();
+      configureExportMode();
+      hydrateFromQuery();
+      renderToggles();
+      updateRenderInfo();
+      if (!state.exportMode) {
+        buildAssetCatalog();
+      }
+    });
+
+    function configureExportMode() {
+      if (!state.exportMode) return;
+      document.body.classList.add("export-mode");
+      state.loop = false;
+      state.transparent = state.exportSettings.transparent;
+
+      const width = Math.max(2, Math.round(state.exportSettings.width || window.innerWidth || 512));
+      const height = Math.max(2, Math.round(state.exportSettings.height || window.innerHeight || 512));
+      document.documentElement.style.width = width + "px";
+      document.documentElement.style.height = height + "px";
+      document.body.style.width = width + "px";
+      document.body.style.height = height + "px";
+      dom.stageWrap.style.width = width + "px";
+      dom.stageWrap.style.height = height + "px";
+      dom.player.style.width = width + "px";
+      dom.player.style.height = height + "px";
+    }
+
+    function bindEvents() {
+      dom.loadBtn.addEventListener("click", () => loadAsset(dom.animationSelect.value));
+      dom.replayBtn.addEventListener("click", replayAnimation);
+      dom.loopBtn.addEventListener("click", () => {
+        state.loop = !state.loop;
+        renderToggles();
+        replayAnimation();
+      });
+      dom.bgBtn.addEventListener("click", () => {
+        state.transparent = !state.transparent;
+        renderToggles();
+        if (state.player) {
+          loadAsset(dom.animationSelect.value);
+        }
+      });
+      dom.animationSelect.addEventListener("change", () => {
+        replayAnimation();
+        updateQuery();
+      });
+      dom.renderScaleSelect.addEventListener("change", () => {
+        state.renderScale = dom.renderScaleSelect.value;
+        resizePlayerNow();
+        updateQuery();
+      });
+      dom.characterSelect.addEventListener("change", () => {
+        renderAssetOptions(dom.characterSelect.value, "");
+        const firstAsset = currentSelectedAsset();
+        if (firstAsset) {
+          applyCatalogAsset(firstAsset, false);
+        }
+      });
+      dom.assetSelect.addEventListener("change", () => {
+        const asset = currentSelectedAsset();
+        if (!asset) return;
+        applyCatalogAsset(asset, true);
+      });
+      dom.jsonPath.addEventListener("change", () => {
+        if (!dom.atlasPath.value.trim()) {
+          dom.atlasPath.value = inferAtlasPath(dom.jsonPath.value);
+        }
+        syncSelectorsToPath(dom.jsonPath.value);
+      });
+    }
+
+    async function buildAssetCatalog() {
+      try {
+        const [charNames, directoryResults] = await Promise.all([
+          fetchCharacterNames(),
+          Promise.all(assetDirectories.map(readAssetDirectory))
+        ]);
+        state.charNames = charNames;
+        const assets = directoryResults.flat().map((asset) => enrichAsset(asset, charNames));
+        state.catalog = assets.length ? assets : fallbackAssets.map((asset) => enrichAsset(asset, charNames));
+        renderCharacterOptions();
+        syncSelectorsToPath(dom.jsonPath.value);
+        const source = assets.length ? "local directory listings" : "fallback examples";
+        dom.selectorNote.textContent = "Loaded " + state.catalog.length + " Spine files from " + source + ".";
+      } catch (error) {
+        state.catalog = fallbackAssets.map((asset) => enrichAsset(asset, state.charNames));
+        renderCharacterOptions();
+        syncSelectorsToPath(dom.jsonPath.value);
+        dom.selectorNote.textContent = "Could not scan directories; showing fallback examples. " + error.message;
+      }
+    }
+
+    async function fetchCharacterNames() {
+      const names = new Map();
+      try {
+        const data = await fetchJson("vendor/text/char_base.json");
+        for (const [key, value] of Object.entries(data)) {
+          if (!key.startsWith("name@")) continue;
+          const id = key.slice("name@".length);
+          names.set(id, value);
+        }
+      } catch (_error) {
+        // The selector still works with asset IDs when text metadata is unavailable.
+      }
+      return names;
+    }
+
+    async function readAssetDirectory(directory) {
+      const response = await fetch(directory.path, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(directory.path + " returned HTTP " + response.status + ".");
+      }
+      const html = await response.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const seen = new Set();
+      const assets = [];
+      for (const link of doc.querySelectorAll("a[href]")) {
+        const href = link.getAttribute("href") || "";
+        let fileName = decodeURIComponent(href.split("?")[0].split("#")[0]);
+        fileName = fileName.slice(fileName.lastIndexOf("/") + 1);
+        if (!fileName.endsWith(".json") || seen.has(fileName)) continue;
+        seen.add(fileName);
+        const json = directory.path + fileName;
+        assets.push({
+          kind: directory.label,
+          label: directory.label + " " + stripExtension(fileName),
+          json,
+          atlas: inferAtlasPath(json),
+          anim: ""
+        });
+      }
+      return assets;
+    }
+
+    function enrichAsset(asset, charNames) {
+      const id = detectCharacterId(asset.json, charNames);
+      const fallbackId = id || detectNumericStem(asset.json) || "other";
+      return {
+        ...asset,
+        charId: fallbackId,
+        characterName: id ? charNames.get(id) : characterFallbackName(fallbackId),
+        sortName: id ? charNames.get(id) : characterFallbackName(fallbackId),
+        label: asset.label || asset.kind + " " + basename(stripExtension(asset.json))
+      };
+    }
+
+    function renderCharacterOptions() {
+      const groupsById = new Map();
+      for (const asset of state.catalog) {
+        if (!groupsById.has(asset.charId)) {
+          groupsById.set(asset.charId, {
+            id: asset.charId,
+            name: asset.characterName,
+            sortName: asset.sortName,
+            assets: []
+          });
+        }
+        groupsById.get(asset.charId).assets.push(asset);
+      }
+
+      state.groups = Array.from(groupsById.values()).sort((a, b) => {
+        const aKnown = state.charNames.has(a.id);
+        const bKnown = state.charNames.has(b.id);
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        return a.sortName.localeCompare(b.sortName, undefined, { numeric: true, sensitivity: "base" });
+      });
+
+      dom.characterSelect.replaceChildren();
+      for (const group of state.groups) {
+        group.assets.sort(compareAssets);
+        const option = document.createElement("option");
+        option.value = group.id;
+        option.textContent = group.name + " (" + group.assets.length + ")";
+        dom.characterSelect.append(option);
+      }
+      if (!state.groups.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No character assets found";
+        dom.characterSelect.append(option);
+      }
+    }
+
+    function renderAssetOptions(charId, selectedJson) {
+      const group = state.groups.find((item) => item.id === charId);
+      dom.assetSelect.replaceChildren();
+      if (!group) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Choose a character first";
+        dom.assetSelect.append(option);
+        return;
+      }
+
+      const groupedAssets = new Map();
+      for (const asset of group.assets) {
+        if (!groupedAssets.has(asset.kind)) groupedAssets.set(asset.kind, []);
+        groupedAssets.get(asset.kind).push(asset);
+      }
+
+      for (const [kind, assets] of groupedAssets) {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = kind;
+        for (const asset of assets) {
+          const option = document.createElement("option");
+          option.value = asset.json;
+          option.textContent = assetOptionLabel(asset);
+          option.title = asset.json;
+          if (asset.json === selectedJson) option.selected = true;
+          optgroup.append(option);
+        }
+        dom.assetSelect.append(optgroup);
+      }
+    }
+
+    function syncSelectorsToPath(jsonPath) {
+      if (!state.groups.length) return;
+      const normalized = normalizePath(jsonPath);
+      const asset = state.catalog.find((item) => item.json === normalized);
+      const selectedGroup = asset ? asset.charId : state.groups[0].id;
+      dom.characterSelect.value = selectedGroup;
+      renderAssetOptions(selectedGroup, asset ? asset.json : "");
+    }
+
+    function currentSelectedAsset() {
+      const json = dom.assetSelect.value;
+      return state.catalog.find((asset) => asset.json === json) || null;
+    }
+
+    function applyCatalogAsset(asset, shouldLoad) {
+      dom.jsonPath.value = asset.json;
+      dom.atlasPath.value = asset.atlas;
+      if (shouldLoad) {
+        loadAsset(asset.anim || "");
+      }
+    }
+
+    function detectCharacterId(path, charNames) {
+      const name = basename(path);
+      const stem = stripExtension(name).toLowerCase();
+      const ids = Array.from(charNames.keys()).sort((a, b) => b.length - a.length || b.localeCompare(a));
+
+      for (const id of ids) {
+        if (stem === id) return id;
+      }
+
+      for (const id of ids) {
+        if (stem.startsWith(id) && id.length >= 4) return id;
+      }
+
+      for (const id of ids) {
+        const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const pattern = new RegExp("(^|[^0-9])" + escaped + "([^0-9]|$)");
+        if (pattern.test(stem)) return id;
+      }
+
+      return "";
+    }
+
+    function detectNumericStem(path) {
+      const stem = stripExtension(basename(path));
+      const match = stem.match(/\d{4,}/);
+      return match ? match[0].slice(0, 4) : "";
+    }
+
+    function characterFallbackName(id) {
+      if (id === "other") return "Other Assets";
+      return "Asset ID " + id;
+    }
+
+    function compareAssets(a, b) {
+      const kindOrder = { Model: 0, Card: 1, Effect: 2 };
+      const aOrder = kindOrder[a.kind] ?? 99;
+      const bOrder = kindOrder[b.kind] ?? 99;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return basename(a.json).localeCompare(basename(b.json), undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    function assetOptionLabel(asset) {
+      const name = basename(stripExtension(asset.json));
+      if (asset.kind === "Model" && name === asset.charId) return "Base model";
+      if (asset.kind === "Model" && name === asset.charId + "_battle_ready") return "Battle ready";
+      return name;
+    }
+
+    function hydrateFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const json = params.get("json");
+      const atlas = params.get("atlas");
+      const anim = params.get("anim");
+      const scale = params.get("scale");
+      if (json) dom.jsonPath.value = json;
+      if (atlas) dom.atlasPath.value = atlas;
+      if (!atlas && json) dom.atlasPath.value = inferAtlasPath(json);
+      if (scale && isValidRenderScale(scale)) {
+        state.renderScale = scale;
+        dom.renderScaleSelect.value = scale;
+      }
+      if (json || atlas || anim) {
+        loadAsset(anim || "");
+      }
+    }
+
+    async function loadAsset(requestedAnimation) {
+      const jsonPath = normalizePath(dom.jsonPath.value);
+      const atlasPath = normalizePath(dom.atlasPath.value || inferAtlasPath(jsonPath));
+      dom.jsonPath.value = jsonPath;
+      dom.atlasPath.value = atlasPath;
+
+      if (!jsonPath || !atlasPath) {
+        setStatus("Enter both a skeleton JSON path and an atlas path.", "error");
+        return;
+      }
+
+      state.lastJson = jsonPath;
+      state.lastAtlas = atlasPath;
+      dom.loadBtn.disabled = true;
+      setStatus("Loading skeleton and atlas...", "");
+      setRelated([{ path: "Checking asset files...", kind: "load" }]);
+      resetPlayer();
+
+      try {
+        await spineRuntimeReady;
+        patchSpineRendererForScale();
+        const skeletonData = await fetchJson(jsonPath);
+        const atlasText = await fetchText(atlasPath, "atlas");
+        const animations = Object.keys(skeletonData.animations || {});
+        state.animations = animations;
+        const selectedAnimation = chooseAnimation(animations, requestedAnimation);
+
+        renderAnimationOptions(animations, selectedAnimation);
+        renderMetadata(jsonPath, skeletonData);
+        await renderRelatedAssets(jsonPath, atlasPath, atlasText);
+
+        state.player = new spine.SpinePlayer("player", {
+          jsonUrl: jsonPath,
+          atlasUrl: atlasPath,
+          skeleton: jsonPath,
+          atlas: atlasPath,
+          alpha: state.transparent,
+          backgroundColor: state.transparent ? "#00000000" : "#10141dff",
+          fullScreenBackgroundColor: state.transparent ? "#00000000" : "#10141dff",
+          showControls: !state.exportMode,
+          premultipliedAlpha: !state.exportMode || !state.transparent,
+          success: function(player) {
+            state.player = player;
+            resizePlayerNow();
+            if (selectedAnimation && !state.exportMode) {
+              player.setAnimation(selectedAnimation, state.loop);
+            }
+            const count = animations.length === 1 ? "1 animation" : animations.length + " animations";
+            setStatus("Loaded " + basename(jsonPath) + " with " + count + ".", "ok");
+            if (state.exportMode) {
+              runExportCapture(player, selectedAnimation);
+            } else {
+              updateQuery();
+            }
+          },
+          error: function(_player, reason) {
+            setStatus("Spine Player error: " + reason, "error");
+            if (state.exportMode) postExportError("Spine Player error: " + reason);
+          }
+        });
+      } catch (error) {
+        renderAnimationOptions([], "");
+        setStatus(error.message, "error");
+        if (state.exportMode) postExportError(error.message);
+      } finally {
+        dom.loadBtn.disabled = false;
+      }
+    }
+
+    async function runExportCapture(player, selectedAnimation) {
+      if (state.exportRunning) return;
+      state.exportRunning = true;
+
+      try {
+        const canvas = dom.player.querySelector("canvas");
+        if (!canvas) throw new Error("Spine player did not create a canvas.");
+
+        const settings = state.exportSettings;
+        const animations = settings.animations.length ? settings.animations : (selectedAnimation ? [selectedAnimation] : []);
+        const fps = Number.isFinite(settings.fps) && settings.fps > 0 ? settings.fps : 30;
+        const duration = Math.max(0.1, Number.isFinite(settings.duration) ? settings.duration : 1);
+        await prepareExportAnimation(player);
+        await waitForFrames(2);
+
+        freezePlayerClock(player);
+        playExportAnimations(player, animations, { reset: true });
+        if (settings.captureMode === "realtime") {
+          await postRealtimeCapture(player, canvas, animations, duration, fps, settings.id);
+          return;
+        }
+
+        await postDeterministicFrames(player, canvas, duration, fps, settings.id);
+
+        const completeResponse = await fetch("/__spine_export__/complete?id=" + encodeURIComponent(settings.id), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ frames: Math.max(1, Math.ceil(duration * fps)), fps, duration })
+        });
+        if (!completeResponse.ok) throw new Error("Exporter rejected completion: " + completeResponse.status);
+        setStatus("Export frames posted.", "ok");
+      } catch (error) {
+        postExportError(error && error.stack ? error.stack : error.message || String(error));
+      }
+    }
+
+    async function postRealtimeCapture(player, canvas, animations, duration, fps, exportId) {
+      if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
+        throw new Error("Realtime capture is not supported in this browser.");
+      }
+      const mimeType = chooseExportMimeType();
+      const stream = canvas.captureStream(fps);
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+      const stopped = new Promise((resolve, reject) => {
+        recorder.onerror = () => reject(recorder.error || new Error("MediaRecorder failed."));
+        recorder.onstop = resolve;
+      });
+
+      recorder.start(100);
+      if (player.animationState) player.animationState.timeScale = 1;
+      playExportAnimations(player, animations, { reset: true });
+      renderPlayerFrame(player);
+      await sleep(Math.ceil(duration * 1000));
+      freezePlayerClock(player);
+      recorder.stop();
+      await stopped;
+      stream.getTracks().forEach((track) => track.stop());
+
+      const blob = new Blob(chunks, { type: mimeType || "video/webm" });
+      if (!blob.size) throw new Error("Recorded WebM was empty.");
+      const response = await fetch("/__spine_export__/capture?id=" + encodeURIComponent(exportId), {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "video/webm" },
+        body: blob
+      });
+      if (!response.ok) throw new Error("Exporter rejected realtime capture: " + response.status);
+      setStatus("Realtime export capture posted.", "ok");
+    }
+
+    async function postDeterministicFrames(player, canvas, duration, fps, exportId) {
+      const frameCount = Math.max(1, Math.ceil(duration * fps));
+      const delta = 1 / fps;
+      for (let frame = 0; frame < frameCount; frame++) {
+        if (frame === 0) {
+          applyAnimationPose(player, 0);
+        } else {
+          applyAnimationPose(player, delta);
+        }
+        flushCanvas(canvas);
+        const blob = await canvasToPngBlob(canvas);
+        const response = await fetch("/__spine_export__/frame?id=" + encodeURIComponent(exportId) + "&frame=" + frame, {
+          method: "POST",
+          headers: { "Content-Type": "image/png" },
+          body: blob
+        });
+        if (!response.ok) throw new Error("Exporter rejected frame " + frame + ": " + response.status);
+        if (frame % 10 === 0) await sleep(0);
+      }
+    }
+
+    function chooseExportMimeType() {
+      const candidates = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+      return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+    }
+
+    function canvasToPngBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob || !blob.size) {
+            reject(new Error("Canvas produced an empty PNG frame."));
+          } else {
+            resolve(blob);
+          }
+        }, "image/png");
+      });
+    }
+
+    function flushCanvas(canvas) {
+      const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (gl && typeof gl.flush === "function") gl.flush();
+    }
+
+    async function prepareExportAnimation(player) {
+      disablePlayerMix(player);
+      clearPlayerAnimation(player);
+      setSkeletonSetupPose(player);
+      freezePlayerClock(player);
+      renderPlayerFrame(player);
+    }
+
+    function freezePlayerClock(player) {
+      if (player && player.animationState) {
+        player.animationState.timeScale = 0;
+      }
+    }
+
+    function playExportAnimations(player, animations, options = {}) {
+      if (!animations.length) return;
+      if (options.reset) {
+        disablePlayerMix(player);
+        clearPlayerAnimation(player);
+        setSkeletonSetupPose(player);
+      }
+      if (player.animationState && player.animationState.setAnimation) {
+        const firstEntry = player.animationState.setAnimation(0, animations[0], false);
+        disableAnimationMix(firstEntry);
+        if (player.animationState.addAnimation) {
+          for (let i = 1; i < animations.length; i++) {
+            disableAnimationMix(player.animationState.addAnimation(0, animations[i], false, 0));
+          }
+        }
+        applyAnimationPose(player, 0);
+        return;
+      }
+      player.setAnimation(animations[0], false);
+      renderPlayerFrame(player);
+    }
+
+    function clearPlayerAnimation(player) {
+      if (player.animationState && player.animationState.clearTracks) {
+        player.animationState.clearTracks();
+      } else if (player.animationState && player.animationState.clearTrack) {
+        player.animationState.clearTrack(0);
+      }
+    }
+
+    function disableAnimationMix(entry) {
+      if (!entry) return;
+      entry.mixDuration = 0;
+      entry.mixTime = 0;
+    }
+
+    function disablePlayerMix(player) {
+      if (player.animationState && player.animationState.data) {
+        player.animationState.data.defaultMix = 0;
+      }
+    }
+
+    function setSkeletonSetupPose(player) {
+      if (!player.skeleton) return;
+      if (typeof player.skeleton.setToSetupPose === "function") {
+        player.skeleton.setToSetupPose();
+      } else {
+        if (typeof player.skeleton.setBonesToSetupPose === "function") player.skeleton.setBonesToSetupPose();
+        if (typeof player.skeleton.setSlotsToSetupPose === "function") player.skeleton.setSlotsToSetupPose();
+      }
+      if (typeof player.skeleton.updateWorldTransform === "function") {
+        player.skeleton.updateWorldTransform();
+      }
+    }
+
+    function applyAnimationPose(player, delta) {
+      if (player.animationState && player.skeleton) {
+        const previousTimeScale = player.animationState.timeScale;
+        player.animationState.timeScale = 1;
+        try {
+          if (typeof player.animationState.update === "function") player.animationState.update(delta);
+          if (typeof player.animationState.apply === "function") player.animationState.apply(player.skeleton);
+        } finally {
+          player.animationState.timeScale = previousTimeScale;
+        }
+      }
+      if (player.skeleton && typeof player.skeleton.updateWorldTransform === "function") {
+        player.skeleton.updateWorldTransform();
+      }
+      renderPlayerFrame(player);
+    }
+
+    function renderPlayerFrame(player) {
+      if (player && typeof player.drawFrame === "function") {
+        player.drawFrame(false);
+      }
+    }
+
+    function waitForFrames(count) {
+      let remaining = Math.max(1, count);
+      return new Promise((resolve) => {
+        const next = () => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            resolve();
+          } else {
+            requestAnimationFrame(next);
+          }
+        };
+        requestAnimationFrame(next);
+      });
+    }
+
+    async function postExportError(message) {
+      if (!state.exportMode) return;
+      try {
+        await fetch("/__spine_export__/error?id=" + encodeURIComponent(state.exportSettings.id), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: String(message) })
+        });
+      } catch (_error) {
+        // The Python exporter will time out if the error cannot be posted.
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function patchSpineRendererForScale() {
+      if (state.rendererPatched || !window.spine || !spine.webgl || !spine.webgl.SceneRenderer) return;
+
+      const rendererProto = spine.webgl.SceneRenderer.prototype;
+      if (rendererProto.__cznPreviewScaledResize) {
+        state.rendererPatched = true;
+        return;
+      }
+
+      patchSpinePlayerScale();
+
+      rendererProto.resize = function(resizeMode) {
+        const canvas = this.canvas;
+        const parent = canvas.parentElement;
+        const cssWidth = Math.max(1, Math.round(canvas.clientWidth || (parent ? parent.clientWidth : 0) || canvas.width || 1));
+        const cssHeight = Math.max(1, Math.round(canvas.clientHeight || (parent ? parent.clientHeight : 0) || canvas.height || 1));
+        const renderScale = getRenderScale();
+        const pixelWidth = Math.max(1, Math.round(cssWidth * renderScale));
+        const pixelHeight = Math.max(1, Math.round(cssHeight * renderScale));
+        updateRenderInfo(cssWidth, cssHeight, pixelWidth, pixelHeight, renderScale);
+
+        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+          canvas.width = pixelWidth;
+          canvas.height = pixelHeight;
+        }
+        canvas.style.width = cssWidth + "px";
+        canvas.style.height = cssHeight + "px";
+
+        this.context.gl.viewport(0, 0, canvas.width, canvas.height);
+
+        if (resizeMode === spine.webgl.ResizeMode.Expand) {
+          this.camera.setViewport(cssWidth, cssHeight);
+        } else if (resizeMode === spine.webgl.ResizeMode.Fit) {
+          const sourceWidth = cssWidth;
+          const sourceHeight = cssHeight;
+          const targetWidth = this.camera.viewportWidth;
+          const targetHeight = this.camera.viewportHeight;
+          const targetRatio = targetHeight / targetWidth;
+          const sourceRatio = sourceHeight / sourceWidth;
+          const scale = targetRatio < sourceRatio ? targetWidth / sourceWidth : targetHeight / sourceHeight;
+          this.camera.viewportWidth = sourceWidth * scale;
+          this.camera.viewportHeight = sourceHeight * scale;
+        }
+
+        this.camera.update();
+      };
+
+      rendererProto.__cznPreviewScaledResize = true;
+      state.rendererPatched = true;
+    }
+
+    function patchSpinePlayerScale() {
+      if (!spine.SpinePlayer || !spine.SpinePlayer.prototype) return;
+      const playerProto = spine.SpinePlayer.prototype;
+      if (playerProto.__cznPreviewCssScale) return;
+
+      const originalScale = playerProto.scale;
+      playerProto.scale = function(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+        if (this.canvas && targetWidth === this.canvas.width && targetHeight === this.canvas.height) {
+          const parent = this.canvas.parentElement;
+          targetWidth = Math.max(1, Math.round(this.canvas.clientWidth || (parent ? parent.clientWidth : 0) || targetWidth / getRenderScale()));
+          targetHeight = Math.max(1, Math.round(this.canvas.clientHeight || (parent ? parent.clientHeight : 0) || targetHeight / getRenderScale()));
+        }
+        return originalScale.call(this, sourceWidth, sourceHeight, targetWidth, targetHeight);
+      };
+
+      playerProto.__cznPreviewCssScale = true;
+    }
+
+    function updateRenderInfo(cssWidth, cssHeight, pixelWidth, pixelHeight, renderScale) {
+      if (!dom.renderInfo) return;
+      const scale = typeof renderScale === "number" ? renderScale : getRenderScale();
+      let message = "Canvas will render at " + formatScale(scale) + " backing resolution.";
+      if (cssWidth && cssHeight && pixelWidth && pixelHeight) {
+        message = "Canvas " + pixelWidth + "x" + pixelHeight + " for " + cssWidth + "x" + cssHeight + " CSS px (" + formatScale(scale) + ").";
+      }
+      if (dom.renderInfo.textContent !== message) {
+        dom.renderInfo.textContent = message;
+      }
+    }
+
+    function getRenderScale() {
+      if (state.renderScale === "auto") {
+        return clamp(window.devicePixelRatio || 1, 1, 4);
+      }
+      const value = Number(state.renderScale);
+      return Number.isFinite(value) ? clamp(value, 1, 4) : 2;
+    }
+
+    function isValidRenderScale(value) {
+      return value === "auto" || ["1", "2", "3", "4"].includes(value);
+    }
+
+    function formatScale(value) {
+      return Number.isInteger(value) ? value + "x" : value.toFixed(2) + "x";
+    }
+
+    function resizePlayerNow() {
+      if (!state.player) return;
+      if (typeof state.player.drawFrame === "function") {
+        state.player.drawFrame(false);
+      }
+    }
+
+    function loadSpineRuntime(urls) {
+      let index = 0;
+
+      return new Promise((resolve, reject) => {
+        const tryNext = () => {
+          if (window.spine && window.spine.SpinePlayer) {
+            resolve();
+            return;
+          }
+          if (index >= urls.length) {
+            reject(new Error("Spine Player 3.8 runtime did not load from the configured CDN URLs."));
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.src = urls[index];
+          script.async = true;
+          index += 1;
+          script.onload = () => {
+            if (window.spine && window.spine.SpinePlayer) {
+              resolve();
+            } else {
+              tryNext();
+            }
+          };
+          script.onerror = tryNext;
+          document.head.append(script);
+        };
+
+        tryNext();
+      });
+    }
+
+    function replayAnimation() {
+      const animation = dom.animationSelect.value;
+      if (!state.player || !animation) return;
+      try {
+        state.player.setAnimation(animation, state.loop);
+      } catch (error) {
+        setStatus("Could not play animation `" + animation + "`: " + error.message, "error");
+      }
+    }
+
+    function resetPlayer() {
+      if (state.player && typeof state.player.dispose === "function") {
+        try {
+          state.player.dispose();
+        } catch (_error) {
+          // Older player builds do not always expose a complete disposal path.
+        }
+      }
+      state.player = null;
+      dom.player.replaceChildren();
+    }
+
+    async function fetchJson(path) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Skeleton JSON not reachable: " + path + " returned HTTP " + response.status + ".");
+      }
+      try {
+        return await response.json();
+      } catch (error) {
+        throw new Error("Skeleton JSON could not be parsed: " + error.message);
+      }
+    }
+
+    async function fetchText(path, label) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(capitalize(label) + " not reachable: " + path + " returned HTTP " + response.status + ".");
+      }
+      return response.text();
+    }
+
+    async function checkPath(path) {
+      try {
+        const response = await fetch(path, { method: "HEAD", cache: "no-store" });
+        return response.ok;
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    async function renderRelatedAssets(jsonPath, atlasPath, atlasText) {
+      const related = [];
+      const atlasDir = dirname(atlasPath);
+      const jsonBase = stripExtension(jsonPath);
+      const pageNames = parseAtlasPages(atlasText);
+
+      for (const page of pageNames) {
+        const pagePath = joinPath(atlasDir, page);
+        related.push({
+          path: pagePath,
+          kind: "atlas png",
+          ok: await checkPath(pagePath)
+        });
+      }
+
+      const customCandidates = [
+        jsonBase + ".cfx",
+        jsonBase + ".particle",
+        jsonBase + "_pati1.particle"
+      ];
+      for (const candidate of customCandidates) {
+        if (await checkPath(candidate)) {
+          related.push({ path: candidate, kind: "listed only", ok: true, custom: true });
+        }
+      }
+
+      if (!related.length) {
+        related.push({ path: "No atlas PNG pages or custom effect files found.", kind: "none" });
+      }
+      setRelated(related);
+    }
+
+    function parseAtlasPages(text) {
+      const pages = [];
+      let expectPage = true;
+      for (const rawLine of text.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line) {
+          expectPage = true;
+          continue;
+        }
+        if (expectPage && !line.includes(":")) {
+          pages.push(line);
+          expectPage = false;
+        }
+      }
+      return pages;
+    }
+
+    function setRelated(items) {
+      dom.relatedAssets.replaceChildren();
+      for (const item of items) {
+        const li = document.createElement("li");
+        const path = document.createElement("span");
+        path.textContent = item.path;
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        if (item.ok === true) badge.classList.add(item.custom ? "warn" : "ok");
+        if (item.ok === false) badge.classList.add("error");
+        badge.textContent = item.ok === false ? "missing" : item.kind;
+        li.append(path, badge);
+        dom.relatedAssets.append(li);
+      }
+    }
+
+    function renderAnimationOptions(animations, selectedAnimation) {
+      dom.animationSelect.replaceChildren();
+      if (!animations.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No animations found";
+        dom.animationSelect.append(option);
+        return;
+      }
+      for (const name of animations) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === selectedAnimation) option.selected = true;
+        dom.animationSelect.append(option);
+      }
+    }
+
+    function renderMetadata(jsonPath, skeletonData) {
+      dom.assetName.textContent = basename(stripExtension(jsonPath));
+      const version = skeletonData.skeleton && skeletonData.skeleton.spine;
+      dom.spineVersion.textContent = version ? "Spine " + version : "";
+      dom.activePath.innerHTML = "";
+      const code = document.createElement("code");
+      code.textContent = jsonPath;
+      dom.activePath.append(code);
+    }
+
+    function renderToggles() {
+      dom.loopBtn.setAttribute("aria-pressed", String(state.loop));
+      dom.loopBtn.textContent = state.loop ? "Loop On" : "Loop Off";
+      dom.bgBtn.setAttribute("aria-pressed", String(state.transparent));
+      dom.bgBtn.textContent = state.transparent ? "Transparent" : "Dark BG";
+      dom.stageWrap.classList.toggle("transparent", state.transparent);
+    }
+
+    function chooseAnimation(animations, requestedAnimation) {
+      if (!animations.length) return "";
+      if (requestedAnimation && animations.includes(requestedAnimation)) return requestedAnimation;
+      const preferred = ["idle", "animation", "attack_play1", "u1_attack_play", "ug_attack_1", "ux_attack_1"];
+      return preferred.find((name) => animations.includes(name)) || animations[0];
+    }
+
+    function updateQuery() {
+      if (!state.lastJson || !state.lastAtlas) return;
+      const params = new URLSearchParams();
+      params.set("json", state.lastJson);
+      params.set("atlas", state.lastAtlas);
+      if (dom.animationSelect.value) params.set("anim", dom.animationSelect.value);
+      if (state.renderScale !== "2") params.set("scale", state.renderScale);
+      const nextUrl = window.location.pathname + "?" + params.toString();
+      window.history.replaceState(null, "", nextUrl);
+    }
+
+    function setStatus(message, mode) {
+      dom.status.className = "status";
+      if (mode) dom.status.classList.add(mode);
+      dom.status.textContent = message;
+    }
+
+    function normalizePath(path) {
+      return path.trim().replace(/^\/+/, "");
+    }
+
+    function inferAtlasPath(jsonPath) {
+      return normalizePath(jsonPath).replace(/\.[^.\/\\]+$/, ".atlas");
+    }
+
+    function dirname(path) {
+      const index = path.lastIndexOf("/");
+      return index === -1 ? "" : path.slice(0, index + 1);
+    }
+
+    function basename(path) {
+      const index = path.lastIndexOf("/");
+      return index === -1 ? path : path.slice(index + 1);
+    }
+
+    function stripExtension(path) {
+      return path.replace(/\.[^.\/\\]+$/, "");
+    }
+
+    function joinPath(dir, file) {
+      return dir ? dir + file : file;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function capitalize(value) {
+      return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+  </script>
+</body>
+</html>

@@ -21,7 +21,7 @@ def _upload_file(
     force: bool = False,
 ) -> None:
     from pywikibot.site._upload import Uploader
-    from wiki_utils import s
+    from utils.wiki_utils import s
 
     while True:
         try:
@@ -54,7 +54,7 @@ def _upload_file(
 def process_uploads(requests: list[UploadRequest], force: bool = False) -> None:
     from pywikibot import FilePage
     from pywikibot.pagegenerators import PreloadingGenerator
-    from wiki_utils import s
+    from utils.wiki_utils import s
 
     seen: set[str] = set()
     tagged: list[tuple[FilePage, UploadRequest]] = []
