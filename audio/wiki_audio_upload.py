@@ -214,18 +214,23 @@ def escape_template_value(value: str) -> str:
 def voice_line_section(line: VoiceLine) -> str:
     suffix = voice_line_suffix(line.line_key).lower()
     if re.match(
-        r"^(battle_idle|attack|begin|break|buff|clear|collapse|crisis|critical|"
+        r"^(attack|battle|begin|break|buff|clear|collapse|crisis|critical|"
         r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|"
-        r"idle|lose|over|panic|pair_ux|ready|skill|sp|stage|u\d|ug|ux|warning)",
+        r"idle|lose|over|panic|pair_ux|ready|safe|skill|sp|stage|stress|team|u\d|ug|ux|warning)",
         suffix,
     ):
         return "Combat"
     if re.match(
-        r"^(lobby|sense|small_talk|talk|title|touch|emotion|worry)",
+        r"^(chatter|captain|first|detailed|growth|move|lobby|sense|small_talk|talk|title|touch|emotion|worry)",
         suffix,
     ):
-        return "Homescreen"
-    return "Story and Special"
+        return "General"
+    if re.match(
+        r"^(perk)",
+        suffix,
+    ):
+        return "Perk"
+    return "Special"
 
 
 def parse_args() -> argparse.Namespace:
