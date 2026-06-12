@@ -215,14 +215,15 @@ def voice_line_section(line: VoiceLine) -> str:
     suffix = voice_line_suffix(line.line_key).lower()
     if re.match(
         r"^(attack|battle|begin|break|buff|camp|clear|collapse|crisis|critical|"
-        r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|"
+        r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|info_voice_turn|"
         r"idle|lose|over|panic|pair_ux|ready|safe|skill|sp|stage|stress|u\d|ug|ux|warning)",
         suffix,
     ):
         return "Combat"
     if re.match(
-        r"^(chatter|captain|first|detailed|growth|move|lobby|talk|title|touch|turn|emotion|worry"
-        r"small_talk|text_get_char|voice_manage_enter|voice_team_join)",
+        r"^(chatter|captain|first|detailed|gacha|growth|move|lobby|title|touch|emotion|worry|"
+        r"info_voice|small_talk|talk|text_get_char|voice_manage_enter|manage_enter|"
+        r"voice_team_join|team_join)",
         suffix,
     ):
         return "General"
