@@ -146,7 +146,7 @@ def build_voice_page_text(lines: list[VoiceLine]) -> str:
         sections[voice_line_section(line)].append(line)
 
     result = ["{{VoiceTop}}", ""]
-    for section_name in ("Homescreen", "Combat", "Story and Special"):
+    for section_name in ("General", "Combat", "Perk", "Special"):
         section_lines = sections.get(section_name, [])
         if not section_lines:
             continue
