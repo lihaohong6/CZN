@@ -214,19 +214,20 @@ def escape_template_value(value: str) -> str:
 def voice_line_section(line: VoiceLine) -> str:
     suffix = voice_line_suffix(line.line_key).lower()
     if re.match(
-        r"^(attack|battle|begin|break|buff|clear|collapse|crisis|critical|"
+        r"^(attack|battle|begin|break|buff|camp|clear|collapse|crisis|critical|"
         r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|"
-        r"idle|lose|over|panic|pair_ux|ready|safe|skill|sp|stage|stress|team|u\d|ug|ux|warning)",
+        r"idle|lose|over|panic|pair_ux|ready|safe|skill|sp|stage|stress|u\d|ug|ux|warning)",
         suffix,
     ):
         return "Combat"
     if re.match(
-        r"^(chatter|captain|first|detailed|growth|move|lobby|sense|small_talk|talk|title|touch|emotion|worry)",
+        r"^(chatter|captain|first|detailed|growth|move|lobby|talk|title|touch|turn|emotion|worry"
+        r"small_talk|text_get_char|voice_manage_enter|voice_team_join)",
         suffix,
     ):
         return "General"
     if re.match(
-        r"^(perk)",
+        r"^(story_moment)",
         suffix,
     ):
         return "Perk"
