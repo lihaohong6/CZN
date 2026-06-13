@@ -146,7 +146,7 @@ def build_voice_page_text(lines: list[VoiceLine]) -> str:
         sections[voice_line_section(line)].append(line)
 
     result = ["{{VoiceTop}}", ""]
-    for section_name in ("Homescreen", "Combat", "Story and Special"):
+    for section_name in ("General", "Combat", "Perk", "Special"):
         section_lines = sections.get(section_name, [])
         if not section_lines:
             continue
@@ -214,17 +214,24 @@ def escape_template_value(value: str) -> str:
 def voice_line_section(line: VoiceLine) -> str:
     suffix = voice_line_suffix(line.line_key).lower()
     if re.match(
-        r"^(battle_idle|attack|begin|break|buff|clear|collapse|crisis|critical|"
-        r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|"
-        r"idle|lose|over|panic|pair_ux|ready|skill|sp|stage|u\d|ug|ux|warning)",
+        r"^(attack|battle|begin|break|buff|camp|clear|collapse|crisis|critical|"
+        r"death|death_collapse|defense|dmg|enter|failure|fatal|fatal_end|hit|info_voice_turn|"
+        r"idle|lose|over|panic|pair_ux|ready|safe|skill|sp|stage|stress|turn|u\d|ug|ux|warning)",
         suffix,
     ):
         return "Combat"
     if re.match(
-        r"^(lobby|sense|small_talk|talk|title|touch|emotion|worry)",
+        r"^(chatter|captain|first|detailed|gacha|growth|move|lobby|title|touch|emotion|worry|"
+        r"info_voice|small_talk|talk|text_get_char|voice_manage_enter|manage_enter|"
+        r"voice_team_join|team_join)",
         suffix,
     ):
-        return "Homescreen"
+        return "General"
+    if re.match(
+        r"^(story_moment)",
+        suffix,
+    ):
+        return "Perk"
     return "Story and Special"
 
 
