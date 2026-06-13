@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -85,6 +85,7 @@ def export_combatant_voice_lines(
         lines_by_key.values(),
         key=lambda line: (line.combatant_id, line.line_key),
     )
+    lines = consolidate_voice_line_duplicates(lines)
     export = VoiceLineExport(
         generated_at=datetime.now(UTC).isoformat(),
         sound_root=str(sound_root),
@@ -93,6 +94,38 @@ def export_combatant_voice_lines(
     )
     save_voice_lines_json(export_root / "voice_lines.json", export)
     return export
+
+
+TITLE_SOURCE_PRIORITY = {"game_exact": 0, "alias": 1, "game_generic": 2, "guessed": 3}
+
+
+def consolidate_voice_line_duplicates(lines: list[VoiceLine]) -> list[VoiceLine]:
+    groups: dict[tuple[int, str], list[VoiceLine]] = defaultdict(list)
+    for line in lines:
+        groups[(line.combatant_id, line.title.get("en", ""))].append(line)
+
+    result: list[VoiceLine] = []
+    for group in groups.values():
+        primary, *rest = sorted(
+            group,
+            key=lambda line: (-len(line.wav_path), TITLE_SOURCE_PRIORITY.get(line.title_source, 99), line.line_key),
+        )
+        for other in rest:
+            for lang, value in other.bank_file.items():
+                primary.bank_file.setdefault(lang, value)
+            for lang, value in other.stream_index.items():
+                primary.stream_index.setdefault(lang, value)
+            for lang, value in other.wav_path.items():
+                primary.wav_path.setdefault(lang, value)
+            for lang, text in other.transcript.items():
+                if text and not primary.transcript.get(lang):
+                    primary.transcript[lang] = text
+            for lang, text in other.translation.items():
+                if text and not primary.translation.get(lang):
+                    primary.translation[lang] = text
+        result.append(primary)
+
+    return result
 
 
 def export_bank(

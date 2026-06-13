@@ -73,7 +73,12 @@ def filter_voice_lines(
     lines = export.lines
     if combatant_ids is not None:
         lines = [line for line in lines if line.combatant_id in combatant_ids]
+    lines = [line for line in lines if not is_incomplete_voice_line(line)]
     return sorted(lines, key=lambda line: (line.combatant_id, line.line_key))
+
+
+def is_incomplete_voice_line(line: VoiceLine) -> bool:
+    return not {"ja", "ko"} <= line.wav_path.keys()
 
 
 def convert_voice_line_files(
