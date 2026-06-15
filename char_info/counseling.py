@@ -68,7 +68,7 @@ def _load_counseling_stories() -> dict[str, dict]:
     story_choice_contents = _load_story_choice_archive_contents()
     result: dict[str, dict] = {}
 
-    for story in load_db("story_counseling_260429@story"):
+    for story in load_db("story_counseling_260520@story"):
         story_id = story.get("id", "")
         if not story_id:
             continue

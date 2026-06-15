@@ -78,10 +78,14 @@ def save_combatant_portraits():
     process_uploads(uploads)
 
 
-def main():
+def upload_character_images():
     save_story_faces()
     save_collapse_illustrations()
     save_combatant_portraits()
+
+
+def main():
+    upload_character_images()
 
 
 if __name__ == "__main__":
