@@ -151,7 +151,7 @@ def build_voice_page_text(lines: list[VoiceLine]) -> str:
         sections[voice_line_section(line)].append(line)
 
     result = ["{{VoiceTop}}", ""]
-    for section_name in ("General", "Combat", "Perk", "Special"):
+    for section_name in ("General", "Combat", "Perk", "Special lobby", "Other"):
         section_lines = sections.get(section_name, [])
         if not section_lines:
             continue
@@ -212,7 +212,8 @@ def escape_template_value(value: str) -> str:
         .replace("|", "{{!}}")
         .replace("\r\n", "\n")
         .replace("\r", "\n")
-        .replace("\n", "<br/>")
+        .replace("\n", "")
+        .replace("<p>", " ")
     )
 
 
@@ -226,7 +227,7 @@ def voice_line_section(line: VoiceLine) -> str:
     ):
         return "Combat"
     if re.match(
-        r"^(chatter|captain|first|detailed|gacha|growth|move|lobby|title|touch|emotion|worry|"
+        r"^(chatter|captain|first|detailed|gacha|growth|move|lobby|title|touch|worry|"
         r"info_voice|small_talk|talk|text_get_char|voice_manage_enter|manage_enter|"
         r"voice_team_join|team_join)",
         suffix,
@@ -236,8 +237,8 @@ def voice_line_section(line: VoiceLine) -> str:
         r"^(story_moment)",
         suffix,
     ):
-        return "Perk"
-    return "Story and Special"
+        return "Special lobby"
+    return "Other"
 
 
 def parse_args() -> argparse.Namespace:

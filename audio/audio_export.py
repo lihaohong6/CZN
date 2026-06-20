@@ -74,6 +74,8 @@ def export_combatant_voice_lines(
                 vgmstream_cli=vgmstream_cli,
             )
             for bank_line in bank_lines:
+                if "_emotion_" in bank_line.line_key:
+                    continue
                 line_key = (bank_line.combatant_id, bank_line.line_key)
                 if line_key in lines_by_key:
                     lines_by_key[line_key].merge(bank_line)
