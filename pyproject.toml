@@ -5,6 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "fastdtw>=0.3.4",
+    "librosa>=0.11.0",
+    "numpy",
     "pywikibot>=11.2.0",
+    "scipy",
     "wikitextparser>=0.56.4",
 ]

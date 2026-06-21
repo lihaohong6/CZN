@@ -4,21 +4,26 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 from collections import defaultdict
 from pathlib import Path
 
 from audio.audio_utils import (
     DEFAULT_OGG_ROOT,
+    DEFAULT_EXPORT_ROOT,
     DEFAULT_VOICE_LINES_JSON,
     VOICE_OGG_BITRATE,
+    VOICE_WIKI_AUDIO_DISTANCE_THRESHOLD,
     VOICE_UPLOAD_LANGS,
+    compute_audio_distance,
     voice_line_suffix,
 )
 from audio.voice_lines import VoiceLine, VoiceLineExport, load_voice_lines_json
-from char_info.characters import combatant_pages
-from utils.upload_utils import UploadRequest, process_uploads
-from utils.wiki_utils import save_wikitext_page
+from utils.upload_utils import UploadRequest, _upload_file, process_uploads
+
+
+DEFAULT_WIKI_AUDIO_CACHE_ROOT = DEFAULT_EXPORT_ROOT / "wiki_cache"
 
 
 def wav_to_ogg(wav_path: Path, ogg_path: Path) -> Path:
@@ -140,9 +145,65 @@ def upload_voice_line_files(
     combatant_ids: set[int] | None = None,
     force: bool = False,
     overwrite_ogg: bool = False,
+    compare_wiki_audio: bool = False,
 ) -> None:
     convert_voice_line_files(export, combatant_ids=combatant_ids, overwrite=overwrite_ogg)
-    process_uploads(build_voice_line_uploads(export, combatant_ids=combatant_ids), force=force)
+    requests = build_voice_line_uploads(export, combatant_ids=combatant_ids)
+    process_uploads(requests, force=force)
+    if compare_wiki_audio:
+        compare_wiki_voice_line_files(requests)
+
+
+def compare_wiki_voice_line_files(
+    requests: list[UploadRequest],
+    cache_root: Path = DEFAULT_WIKI_AUDIO_CACHE_ROOT,
+    distance_threshold: float = VOICE_WIKI_AUDIO_DISTANCE_THRESHOLD,
+) -> None:
+    from pywikibot import FilePage
+    from utils.wiki_utils import s
+
+    cache_root.mkdir(parents=True, exist_ok=True)
+    seen_targets: set[str] = set()
+    for request in requests:
+        local_file = upload_request_local_file(request.source)
+        if local_file is None or not local_file.exists():
+            continue
+        target_title = upload_request_file_title(request.target)
+        if target_title in seen_targets:
+            continue
+        seen_targets.add(target_title)
+
+        file_page = FilePage(s, target_title)
+        cache_file = cache_root / local_file.name
+        try:
+            if not cache_file.exists():
+                file_page.download(filename=str(cache_file))
+            distance = compute_audio_distance(cache_file, local_file)
+            if distance > distance_threshold:
+                print(f"INFO: {target_title} differs from local audio: {distance}")
+                _upload_file(
+                    file_page.text,
+                    file_page,
+                    request.summary,
+                    file=local_file,
+                    force=True,
+                )
+                cache_file.unlink(missing_ok=True)
+                shutil.copy2(local_file, cache_file)
+        except Exception as e:
+            print(f"WARNING: failed to compare {target_title}: {e}")
+
+
+def upload_request_local_file(source) -> Path | None:
+    if isinstance(source, Path):
+        return source
+    if callable(source):
+        return source()
+    return None
+
+
+def upload_request_file_title(target: str) -> str:
+    return target if target.startswith("File:") else f"File:{target}"
 
 
 def build_voice_page_text(lines: list[VoiceLine]) -> str:
@@ -167,6 +228,9 @@ def create_voice_line_audio_pages(
     export: VoiceLineExport,
     combatant_ids: set[int] | None = None,
 ) -> None:
+    from char_info.characters import combatant_pages
+    from utils.wiki_utils import save_wikitext_page
+
     lines_by_combatant: dict[int, list[VoiceLine]] = defaultdict(list)
     for line in filter_voice_lines(export, combatant_ids):
         lines_by_combatant[line.combatant_id].append(line)
@@ -244,6 +308,11 @@ def voice_line_section(line: VoiceLine) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Upload combatant voice lines to the wiki.")
     parser.add_argument("--ids", default="", help="Comma-separated combatant IDs to process.")
+    parser.add_argument(
+        "--compare-wiki-audio",
+        action="store_true",
+        help="Compare existing wiki audio with local OGGs and reupload stale files.",
+    )
     return parser.parse_args()
 
 
@@ -261,7 +330,11 @@ def main() -> None:
     export = load_voice_lines_json(DEFAULT_VOICE_LINES_JSON)
 
     # Comment out either line when only one wiki action is needed.
-    upload_voice_line_files(export, combatant_ids=combatant_ids)
+    upload_voice_line_files(
+        export,
+        combatant_ids=combatant_ids,
+        compare_wiki_audio=args.compare_wiki_audio,
+    )
     create_voice_line_audio_pages(export, combatant_ids=combatant_ids)
 
 

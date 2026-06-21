@@ -16,6 +16,7 @@ DEFAULT_OGG_ROOT = DEFAULT_EXPORT_ROOT / "ogg"
 DEFAULT_LANGS = ("ja", "ko")
 VOICE_UPLOAD_LANGS = ("ja", "ko")
 VOICE_OGG_BITRATE = "128k"
+VOICE_WIKI_AUDIO_DISTANCE_THRESHOLD = 1
 TRANSLATION_LANGS = ("en",)
 TITLE_LANGS = ("en",)
 
@@ -37,6 +38,31 @@ def unique_wav_path(
     return export_root / character_dir / lang / f"{stem}_{stream_index}.wav"
 
 
+def _extract_mfcc(path: Path, sr: int, n_mfcc: int):
+    import librosa
+
+    y, _ = librosa.load(path, sr=sr)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+    return (mfcc - mfcc.mean(axis=1, keepdims=True)) / (
+        mfcc.std(axis=1, keepdims=True) + 1e-8
+    )
+
+
+def compute_audio_distance(
+    p1: Path,
+    p2: Path,
+    sr: int = 22050,
+    n_mfcc: int = 13,
+) -> float:
+    from fastdtw import fastdtw
+    from scipy.spatial.distance import euclidean
+
+    m1 = _extract_mfcc(p1, sr, n_mfcc).T
+    m2 = _extract_mfcc(p2, sr, n_mfcc).T
+    distance, path = fastdtw(m1, m2, dist=euclidean)
+    return distance / len(path)
+
+
 def voice_event_to_line_key(voice_event: str, combatant_id: int) -> str:
     prefix = f"vo_{combatant_id}_"
     if voice_event.startswith(prefix):
@@ -48,6 +74,40 @@ def voice_event_to_line_key(voice_event: str, combatant_id: int) -> str:
 
 def voice_line_text_id(line_key: str) -> str:
     return f"combatant_voice@voice_text@{line_key}"
+
+
+def is_suffixed_lobby_enter_variant(line_key: str) -> bool:
+    return re.match(r"^\d+_lobby_enter_01_(?:1|b)$", line_key) is not None
+
+
+def voice_line_text_id_candidates(line_key: str) -> list[str]:
+    exact_text_id = voice_line_text_id(line_key)
+    match = re.match(r"^(\d+)_(.+)$", line_key)
+    if not match:
+        return [exact_text_id]
+
+    combatant_id, suffix = match.groups()
+    canonical_suffix = voice_line_title_alias(suffix) or suffix
+    canonical_line_key = f"{combatant_id}_{canonical_suffix}"
+    canonical_text_id = voice_line_text_id(canonical_line_key)
+    char_info_text_id = (
+        f"char_info_voice@voice_text@{combatant_id}_info_voice_{canonical_suffix}"
+    )
+
+    if canonical_suffix != suffix:
+        candidates = [char_info_text_id, canonical_text_id, exact_text_id]
+    else:
+        candidates = [exact_text_id, char_info_text_id]
+
+    return list(dict.fromkeys(candidates))
+
+
+def resolve_voice_line_text(line_key: str, text_by_id: dict[str, str]) -> str:
+    for text_id in voice_line_text_id_candidates(line_key):
+        text = text_by_id.get(text_id, "")
+        if text:
+            return text
+    return ""
 
 
 def voice_line_title(

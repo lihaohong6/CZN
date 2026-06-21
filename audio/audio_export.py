@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import filecmp
 import json
 import subprocess
 from collections import Counter, defaultdict
@@ -14,12 +15,16 @@ from audio.audio_utils import (
     TITLE_LANGS,
     TRANSLATION_LANGS,
     combatant_names,
+    is_suffixed_lobby_enter_variant,
     load_text_full_by_lang,
+    resolve_voice_line_text,
     unique_wav_path,
     validate_vgmstream,
     voice_event_to_line_key,
     voice_line_text_id,
+    voice_line_suffix,
     voice_line_title,
+    voice_line_title_alias,
 )
 from audio.voice_lines import VoiceLine, VoiceLineExport, save_voice_lines_json
 from utils.utils import sound_root
@@ -48,6 +53,10 @@ def export_combatant_voice_lines(
         lang: load_text_full_by_lang(lang)
         for lang in TRANSLATION_LANGS
     }
+    exact_voice_text_ids = set().union(
+        *(text_by_id.keys() for text_by_id in text_by_lang.values()),
+        *(text_by_id.keys() for text_by_id in translation_text_by_lang.values()),
+    )
     title_text_by_lang = {
         lang: load_text_full_by_lang(lang)
         for lang in TITLE_LANGS
@@ -69,6 +78,7 @@ def export_combatant_voice_lines(
                 export_root=export_root,
                 transcript_text=text_by_lang.get(lang, {}),
                 translation_text_by_lang=translation_text_by_lang,
+                exact_voice_text_ids=exact_voice_text_ids,
                 title_text_by_lang=title_text_by_lang,
                 overwrite=overwrite,
                 vgmstream_cli=vgmstream_cli,
@@ -104,30 +114,94 @@ TITLE_SOURCE_PRIORITY = {"game_exact": 0, "alias": 1, "game_generic": 2, "guesse
 def consolidate_voice_line_duplicates(lines: list[VoiceLine]) -> list[VoiceLine]:
     groups: dict[tuple[int, str], list[VoiceLine]] = defaultdict(list)
     for line in lines:
-        groups[(line.combatant_id, line.title.get("en", ""))].append(line)
+        groups[(line.combatant_id, canonical_voice_line_suffix(line))].append(line)
 
     result: list[VoiceLine] = []
     for group in groups.values():
-        primary, *rest = sorted(
-            group,
-            key=lambda line: (-len(line.wav_path), TITLE_SOURCE_PRIORITY.get(line.title_source, 99), line.line_key),
-        )
-        for other in rest:
-            for lang, value in other.bank_file.items():
-                primary.bank_file.setdefault(lang, value)
-            for lang, value in other.stream_index.items():
-                primary.stream_index.setdefault(lang, value)
-            for lang, value in other.wav_path.items():
-                primary.wav_path.setdefault(lang, value)
-            for lang, text in other.transcript.items():
-                if text and not primary.transcript.get(lang):
-                    primary.transcript[lang] = text
-            for lang, text in other.translation.items():
-                if text and not primary.translation.get(lang):
-                    primary.translation[lang] = text
-        result.append(primary)
+        clusters: list[VoiceLine] = []
+        for line in sorted(group, key=voice_line_primary_sort_key):
+            for primary in clusters:
+                if compatible_voice_lines(primary, line):
+                    merge_duplicate_voice_line(primary, line)
+                    break
+            else:
+                clusters.append(line)
+        result.extend(clusters)
 
-    return result
+    return sorted(result, key=lambda line: (line.combatant_id, line.line_key))
+
+
+def canonical_voice_line_suffix(line: VoiceLine) -> str:
+    suffix = voice_line_suffix(line.line_key)
+    return voice_line_title_alias(suffix) or suffix
+
+
+def voice_line_primary_sort_key(line: VoiceLine) -> tuple[int, int, int, str]:
+    suffix = voice_line_suffix(line.line_key)
+    canonical_suffix = canonical_voice_line_suffix(line)
+    return (
+        0 if suffix == canonical_suffix else 1,
+        -len(line.wav_path),
+        TITLE_SOURCE_PRIORITY.get(line.title_source, 99),
+        line.line_key,
+    )
+
+
+def compatible_voice_lines(primary: VoiceLine, other: VoiceLine) -> bool:
+    overlapping_langs = set(primary.wav_path) & set(other.wav_path)
+    if not overlapping_langs:
+        return True
+    return all(same_voice_audio(primary, other, lang) for lang in overlapping_langs)
+
+
+def same_voice_audio(first: VoiceLine, second: VoiceLine, lang: str) -> bool:
+    first_bank = first.bank_file.get(lang)
+    second_bank = second.bank_file.get(lang)
+    first_stream = first.stream_index.get(lang)
+    second_stream = second.stream_index.get(lang)
+    if (
+        first_bank
+        and second_bank
+        and first_bank == second_bank
+        and first_stream is not None
+        and first_stream == second_stream
+    ):
+        return True
+
+    first_path = Path(first.wav_path.get(lang, ""))
+    second_path = Path(second.wav_path.get(lang, ""))
+    if not first_path.exists() or not second_path.exists():
+        return False
+    return filecmp.cmp(first_path, second_path, shallow=False)
+
+
+def merge_duplicate_voice_line(primary: VoiceLine, other: VoiceLine) -> None:
+    for lang, wav_path in other.wav_path.items():
+        if lang not in primary.wav_path:
+            if lang in other.bank_file:
+                primary.bank_file[lang] = other.bank_file[lang]
+            if lang in other.stream_index:
+                primary.stream_index[lang] = other.stream_index[lang]
+            primary.wav_path[lang] = wav_path
+            if lang in other.transcript:
+                primary.transcript[lang] = other.transcript[lang]
+            continue
+
+        if other.transcript.get(lang) and not primary.transcript.get(lang):
+            primary.transcript[lang] = other.transcript[lang]
+
+    for lang, text in other.translation.items():
+        if text and not primary.translation.get(lang):
+            primary.translation[lang] = text
+
+
+def should_skip_unmapped_lobby_enter_variant(
+    line_key: str,
+    exact_voice_text_ids: set[str],
+) -> bool:
+    if not is_suffixed_lobby_enter_variant(line_key):
+        return False
+    return voice_line_text_id(line_key) not in exact_voice_text_ids
 
 
 def export_bank(
@@ -138,6 +212,7 @@ def export_bank(
     export_root: Path,
     transcript_text: dict[str, str],
     translation_text_by_lang: dict[str, dict[str, str]],
+    exact_voice_text_ids: set[str],
     title_text_by_lang: dict[str, dict[str, str]],
     overwrite: bool,
     vgmstream_cli: str,
@@ -154,11 +229,13 @@ def export_bank(
         stream_info = meta["streamInfo"]
         voice_event = stream_info.get("name") or f"sound_{stream_index}"
         line_key = voice_event_to_line_key(voice_event, combatant_id)
-        text_id = voice_line_text_id(line_key)
-        transcript = transcript_text.get(text_id, "")
+        if should_skip_unmapped_lobby_enter_variant(line_key, exact_voice_text_ids):
+            continue
+
+        transcript = resolve_voice_line_text(line_key, transcript_text)
         title, title_source = voice_line_title(line_key, title_text_by_lang)
         translation = {
-            translation_lang: translation_text.get(text_id, "")
+            translation_lang: resolve_voice_line_text(line_key, translation_text)
             for translation_lang, translation_text in translation_text_by_lang.items()
         }
 

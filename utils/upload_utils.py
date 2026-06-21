@@ -19,6 +19,7 @@ def _upload_file(
     file: Path | Callable[[], Path] | None = None,
     url: str | None = None,
     force: bool = False,
+    rename_duplicates: bool = False,
 ) -> None:
     from pywikibot.site._upload import Uploader
     from utils.wiki_utils import s
@@ -43,15 +44,25 @@ def _upload_file(
                 return
             m = re.search(r"duplicate of \['([^']+)'", err)
             if m:
-                from pywikibot import FilePage
-                FilePage(s, f"File:{m.group(1)}").move(
-                    target.title(with_ns=True, underscore=True), reason="rename file"
-                )
+                if rename_duplicates:
+                    from pywikibot import FilePage
+                    FilePage(s, f"File:{m.group(1)}").move(
+                        target.title(with_ns=True, underscore=True), reason="rename file"
+                    )
+                else:
+                    print(
+                        f"INFO: {target.title(with_ns=True)} duplicates "
+                        f"File:{m.group(1)}, skipping upload"
+                    )
                 return
             raise
 
 
-def process_uploads(requests: list[UploadRequest], force: bool = False) -> None:
+def process_uploads(
+    requests: list[UploadRequest],
+    force: bool = False,
+    rename_duplicates: bool = False,
+) -> None:
     from pywikibot import FilePage
     from pywikibot.pagegenerators import PreloadingGenerator
     from utils.wiki_utils import s
@@ -72,4 +83,12 @@ def process_uploads(requests: list[UploadRequest], force: bool = False) -> None:
             continue
         url = r.source if isinstance(r.source, str) else None
         file = r.source if not isinstance(r.source, str) else None
-        _upload_file(r.text, fp, r.summary, file=file, url=url, force=force)
+        _upload_file(
+            r.text,
+            fp,
+            r.summary,
+            file=file,
+            url=url,
+            force=force,
+            rename_duplicates=rename_duplicates,
+        )
