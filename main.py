@@ -1,4 +1,5 @@
 from char_info.autocreate_character_pages import auto_create_combatant_pages, auto_create_counseling_pages
+from char_info.autocreate_partner_pages import auto_create_partner_pages
 from char_info.cards import save_cards
 from char_info.char_images import upload_character_images
 from char_info.characters import save_character_info
@@ -23,6 +24,7 @@ def char_info():
 def partner_info():
     save_partner_info()
     upload_partner_images()
+    auto_create_partner_pages()
 
 
 def main():
