@@ -5,7 +5,7 @@ from collections import defaultdict
 from functools import cache
 
 from utils.utils import load_text
-from utils.utils import db_root, load_db, resolve_text_markup
+from utils.utils import assets_root, db_root, load_db, resolve_text_markup
 
 
 @dataclass
@@ -84,6 +84,59 @@ def resolve_placeholders(
     return re.sub(r"#([a-zA-Z_]\w*)#", replacer, text)
 
 
+def resolve_partner_ego_placeholders(text: str, skill_eff_ids: list[str]) -> str:
+    card_skill_eff_map = load_partner_card_skill_eff_map()
+    cs_map = load_partner_cs_map()
+    cs_skill_eff_map = load_partner_cs_skill_eff_map()
+    text = resolve_placeholders(text, skill_eff_ids, card_skill_eff_map)
+
+    def get_cs_eff_value(
+        skill_eff_idx: int, cs_eff_idx: int, key: str, fallback: str
+    ) -> str:
+        if skill_eff_idx >= len(skill_eff_ids):
+            return fallback
+        skill_eff = card_skill_eff_map.get(skill_eff_ids[skill_eff_idx])
+        if not skill_eff:
+            return fallback
+        cs_ids = parse_bracket_list(skill_eff.get("link_cs_id", "[]"))
+        for cs_id in cs_ids:
+            cs = cs_map.get(cs_id)
+            if not cs:
+                continue
+            cs_skill_eff_ids = parse_bracket_list(cs.get("link_skill_eff_id", "[]"))
+            if cs_eff_idx >= len(cs_skill_eff_ids):
+                continue
+            cs_skill_eff = cs_skill_eff_map.get(cs_skill_eff_ids[cs_eff_idx])
+            if cs_skill_eff:
+                return cs_skill_eff.get(key, fallback)
+        return fallback
+
+    def replacer(match):
+        ph = match.group(1)
+        if ph == "match_comb_char":
+            return "assigned combatant"
+        m = re.match(r"cs_ev_(\d+)_(\d+)$", ph)
+        if m:
+            return get_cs_eff_value(
+                int(m.group(1)), int(m.group(2)), "eff_value", match.group(0)
+            )
+        m = re.match(r"cs_ecv_(\d+)_(\d+)$", ph)
+        if m:
+            return get_cs_eff_value(
+                int(m.group(1)), int(m.group(2)), "eff_count_value", match.group(0)
+            )
+        return match.group(0)
+
+    return re.sub(r"#([a-zA-Z_]\w*)#", replacer, text)
+
+
+def ego_desc_text(card: dict) -> str:
+    desc_outgame = card.get("desc_outgame", "")
+    if desc_outgame and desc_outgame != "none":
+        return desc_outgame
+    return card.get("desc", "")
+
+
 @cache
 def load_partner_base_map() -> dict[int, dict]:
     result = {}
@@ -98,6 +151,16 @@ def load_partner_base_map() -> dict[int, dict]:
             continue
         result[partner_id] = entry
     return result
+
+
+@cache
+def load_released_partner_ids() -> set[int]:
+    portrait_dir = assets_root / "face/character"
+    return {
+        partner_id
+        for partner_id in load_partner_base_map()
+        if (portrait_dir / f"portrait_character_{partner_id}.png").exists()
+    }
 
 
 @cache
@@ -121,6 +184,26 @@ def load_partner_card_map() -> dict[str, dict]:
 def load_partner_card_skill_eff_map() -> dict[str, dict]:
     result = {}
     for entry in load_db("card(partner)@skill_eff"):
+        eff_id = entry.get("id", "")
+        if eff_id and eff_id != "none":
+            result[eff_id] = entry
+    return result
+
+
+@cache
+def load_partner_cs_map() -> dict[str, dict]:
+    result = {}
+    for entry in load_db("cs(partner)@cs"):
+        cs_id = entry.get("id", "")
+        if cs_id and cs_id != "none":
+            result[cs_id] = entry
+    return result
+
+
+@cache
+def load_partner_cs_skill_eff_map() -> dict[str, dict]:
+    result = {}
+    for entry in load_db("cs(partner)@skill_eff"):
         eff_id = entry.get("id", "")
         if eff_id and eff_id != "none":
             result[eff_id] = entry
@@ -177,9 +260,7 @@ def parse_partner_ego_skill(base_entry: dict) -> dict | None:
 
     skill_eff_ids = parse_bracket_list(card.get("link_skill_eff_id", "[]"))
     desc = clean_skill_text(
-        resolve_placeholders(
-            card.get("desc", ""), skill_eff_ids, load_partner_card_skill_eff_map()
-        )
+        resolve_partner_ego_placeholders(ego_desc_text(card), skill_eff_ids)
     )
 
     return {
@@ -262,11 +343,12 @@ def parse_partners() -> dict[int, Partner]:
 @cache
 def parse_partner_info() -> dict[int, dict]:
     partners = parse_partners()
+    released_partner_ids = load_released_partner_ids()
     db_data = load_db("supporter_info@supporter_info")
     result = {}
     for entry in db_data:
         char_id = int(entry["id"].removesuffix("_info"))
-        if char_id not in partners:
+        if char_id not in partners or char_id not in released_partner_ids:
             continue
         result[char_id] = {"id": char_id, "name": partners[char_id].name} | {
             k: resolve_text_markup(entry[k]) for k in INFO_FIELDS if k in entry
