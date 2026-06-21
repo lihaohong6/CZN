@@ -13,6 +13,8 @@ from audio.audio_utils import (
     DEFAULT_OGG_ROOT,
     DEFAULT_EXPORT_ROOT,
     DEFAULT_VOICE_LINES_JSON,
+    DEFAULT_PARTNER_OGG_ROOT,
+    DEFAULT_PARTNER_VOICE_LINES_JSON,
     VOICE_OGG_BITRATE,
     VOICE_WIKI_AUDIO_DISTANCE_THRESHOLD,
     VOICE_UPLOAD_LANGS,
@@ -146,12 +148,62 @@ def upload_voice_line_files(
     force: bool = False,
     overwrite_ogg: bool = False,
     compare_wiki_audio: bool = False,
+    ogg_root: Path = DEFAULT_OGG_ROOT,
 ) -> None:
-    convert_voice_line_files(export, combatant_ids=combatant_ids, overwrite=overwrite_ogg)
-    requests = build_voice_line_uploads(export, combatant_ids=combatant_ids)
+    convert_voice_line_files(
+        export,
+        combatant_ids=combatant_ids,
+        overwrite=overwrite_ogg,
+        ogg_root=ogg_root,
+    )
+    requests = build_voice_line_uploads(
+        export,
+        combatant_ids=combatant_ids,
+        ogg_root=ogg_root,
+    )
     process_uploads(requests, force=force)
     if compare_wiki_audio:
         compare_wiki_voice_line_files(requests)
+
+
+def publish_combatant_voice_lines(
+    combatant_ids: set[int] | None = None,
+    voice_lines_json: Path = DEFAULT_VOICE_LINES_JSON,
+    force: bool = False,
+    overwrite_ogg: bool = False,
+    compare_wiki_audio: bool = False,
+    ogg_root: Path = DEFAULT_OGG_ROOT,
+) -> None:
+    export = load_voice_lines_json(voice_lines_json)
+    upload_voice_line_files(
+        export,
+        combatant_ids=combatant_ids,
+        force=force,
+        overwrite_ogg=overwrite_ogg,
+        compare_wiki_audio=compare_wiki_audio,
+        ogg_root=ogg_root,
+    )
+    create_voice_line_audio_pages(export, combatant_ids=combatant_ids)
+
+
+def publish_partner_voice_lines(
+    partner_ids: set[int] | None = None,
+    voice_lines_json: Path = DEFAULT_PARTNER_VOICE_LINES_JSON,
+    force: bool = False,
+    overwrite_ogg: bool = False,
+    compare_wiki_audio: bool = False,
+    ogg_root: Path = DEFAULT_PARTNER_OGG_ROOT,
+) -> None:
+    export = load_voice_lines_json(voice_lines_json)
+    upload_voice_line_files(
+        export,
+        combatant_ids=partner_ids,
+        force=force,
+        overwrite_ogg=overwrite_ogg,
+        compare_wiki_audio=compare_wiki_audio,
+        ogg_root=ogg_root,
+    )
+    update_partner_voice_sections(export, partner_ids=partner_ids)
 
 
 def compare_wiki_voice_line_files(
@@ -253,6 +305,59 @@ def create_voice_line_audio_pages(
         )
 
 
+def build_partner_voice_section_text(lines: list[VoiceLine]) -> str:
+    return "\n".join(
+        voice_line_template(line)
+        for line in sorted(lines, key=lambda item: item.line_key)
+    )
+
+
+def update_partner_voice_sections(
+    export: VoiceLineExport,
+    partner_ids: set[int] | None = None,
+) -> None:
+    import wikitextparser as wtp
+
+    from char_info.partners import partner_pages
+    from utils.wiki_utils import save_wikitext_page
+
+    lines_by_partner: dict[int, list[VoiceLine]] = defaultdict(list)
+    for line in filter_voice_lines(export, partner_ids):
+        lines_by_partner[line.combatant_id].append(line)
+
+    page_by_title = {
+        page.title(with_ns=False): page
+        for page in partner_pages()
+    }
+    for _, lines in sorted(lines_by_partner.items()):
+        page = page_by_title.get(lines[0].character_name)
+        if page is None:
+            print(f"WARNING: {lines[0].character_name} page not found")
+            continue
+
+        parsed = wtp.parse(page.text or "")
+        voice_section = next(
+            (
+                section
+                for section in parsed.sections
+                if section.level == 2
+                and (section.title or "").strip().lower() == "voice"
+            ),
+            None,
+        )
+        if voice_section is None:
+            print(f"WARNING: {page.title(with_ns=False)} has no Voice section")
+            continue
+
+        section_text = build_partner_voice_section_text(lines)
+        voice_section.contents = f"\n{section_text}\n\n" if section_text else "\n"
+        save_wikitext_page(
+            page,
+            str(parsed),
+            summary="update partner voice lines",
+        )
+
+
 def voice_line_template(line: VoiceLine) -> str:
     fields = {
         "key": line.line_key,
@@ -306,8 +411,23 @@ def voice_line_section(line: VoiceLine) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Upload combatant voice lines to the wiki.")
-    parser.add_argument("--ids", default="", help="Comma-separated combatant IDs to process.")
+    parser = argparse.ArgumentParser(description="Upload voice lines to the wiki.")
+    parser.add_argument(
+        "--kind",
+        choices=("combatants", "partners"),
+        default=None,
+        help="Only publish one type of voice lines. Defaults to both.",
+    )
+    parser.add_argument(
+        "--combatant-ids",
+        default="",
+        help="Comma-separated combatant IDs to process.",
+    )
+    parser.add_argument(
+        "--partner-ids",
+        default="",
+        help="Comma-separated partner IDs to process.",
+    )
     parser.add_argument(
         "--compare-wiki-audio",
         action="store_true",
@@ -316,7 +436,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def parse_combatant_ids(value: str) -> set[int] | None:
+def parse_character_ids(value: str) -> set[int] | None:
     return {
         int(id_.strip())
         for id_ in value.split(",")
@@ -326,16 +446,16 @@ def parse_combatant_ids(value: str) -> set[int] | None:
 
 def main() -> None:
     args = parse_args()
-    combatant_ids = parse_combatant_ids(args.ids)
-    export = load_voice_lines_json(DEFAULT_VOICE_LINES_JSON)
-
-    # Comment out either line when only one wiki action is needed.
-    upload_voice_line_files(
-        export,
-        combatant_ids=combatant_ids,
-        compare_wiki_audio=args.compare_wiki_audio,
-    )
-    create_voice_line_audio_pages(export, combatant_ids=combatant_ids)
+    if args.kind in (None, "combatants"):
+        publish_combatant_voice_lines(
+            combatant_ids=parse_character_ids(args.combatant_ids),
+            compare_wiki_audio=args.compare_wiki_audio,
+        )
+    if args.kind in (None, "partners"):
+        publish_partner_voice_lines(
+            partner_ids=parse_character_ids(args.partner_ids),
+            compare_wiki_audio=args.compare_wiki_audio,
+        )
 
 
 if __name__ == "__main__":

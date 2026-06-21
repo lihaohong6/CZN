@@ -12,12 +12,16 @@ from typing import Any
 from audio.audio_utils import (
     DEFAULT_EXPORT_ROOT,
     DEFAULT_LANGS,
+    DEFAULT_PARTNER_EXPORT_ROOT,
     TITLE_LANGS,
     TRANSLATION_LANGS,
     combatant_names,
     is_suffixed_lobby_enter_variant,
     load_text_full_by_lang,
+    partner_names,
+    partner_voice_line_title,
     resolve_voice_line_text,
+    resolve_partner_voice_line_text,
     unique_wav_path,
     validate_vgmstream,
     voice_event_to_line_key,
@@ -35,17 +39,35 @@ def export_combatant_voice_lines(
     langs: tuple[str, ...] = DEFAULT_LANGS,
     combatant_ids: set[int] | None = None,
     overwrite: bool = False,
-    vgmstream_cli: str = "vgmstream-cli",
 ) -> VoiceLineExport:
-    validate_vgmstream(vgmstream_cli)
+    return export_voice_lines("combatants", export_root, langs, combatant_ids, overwrite)
+
+
+def export_partner_voice_lines(
+    export_root: Path = DEFAULT_PARTNER_EXPORT_ROOT,
+    langs: tuple[str, ...] = DEFAULT_LANGS,
+    partner_ids: set[int] | None = None,
+    overwrite: bool = False,
+) -> VoiceLineExport:
+    return export_voice_lines("partners", export_root, langs, partner_ids, overwrite)
+
+
+def export_voice_lines(
+    kind: str,
+    export_root: Path,
+    langs: tuple[str, ...],
+    character_ids: set[int] | None,
+    overwrite: bool,
+) -> VoiceLineExport:
+    validate_vgmstream("vgmstream-cli")
 
     export_root.mkdir(parents=True, exist_ok=True)
-    combatants = combatant_names()
-    if combatant_ids is not None:
-        combatants = {
-            combatant_id: name
-            for combatant_id, name in combatants.items()
-            if combatant_id in combatant_ids
+    character_names = partner_names() if kind == "partners" else combatant_names()
+    if character_ids is not None:
+        character_names = {
+            character_id: name
+            for character_id, name in character_names.items()
+            if character_id in character_ids
         }
 
     text_by_lang = {lang: load_text_full_by_lang(lang) for lang in langs}
@@ -64,7 +86,7 @@ def export_combatant_voice_lines(
     lines_by_key: dict[tuple[int, str], VoiceLine] = {}
     banks_exported: Counter[str] = Counter()
 
-    for combatant_id, character_name in sorted(combatants.items()):
+    for combatant_id, character_name in sorted(character_names.items()):
         for lang in langs:
             bank_path = sound_root / f"{combatant_id}_voc_{lang}.bank"
             if not bank_path.exists():
@@ -81,7 +103,7 @@ def export_combatant_voice_lines(
                 exact_voice_text_ids=exact_voice_text_ids,
                 title_text_by_lang=title_text_by_lang,
                 overwrite=overwrite,
-                vgmstream_cli=vgmstream_cli,
+                kind=kind,
             )
             for bank_line in bank_lines:
                 if "_emotion_" in bank_line.line_key:
@@ -102,7 +124,7 @@ def export_combatant_voice_lines(
         generated_at=datetime.now(UTC).isoformat(),
         sound_root=str(sound_root),
         lines=lines,
-        summary=build_summary(lines, banks_exported),
+        summary=build_summary(lines, banks_exported, kind),
     )
     save_voice_lines_json(export_root / "voice_lines.json", export)
     return export
@@ -215,27 +237,35 @@ def export_bank(
     exact_voice_text_ids: set[str],
     title_text_by_lang: dict[str, dict[str, str]],
     overwrite: bool,
-    vgmstream_cli: str,
+    kind: str = "combatants",
 ) -> list[VoiceLine]:
-    first_meta = read_stream_metadata(bank_path, 1, vgmstream_cli)
+    first_meta = read_stream_metadata(bank_path, 1)
     stream_total = int(first_meta["streamInfo"]["total"])
     bank_lines: list[VoiceLine] = []
     used_paths: set[Path] = set()
+    text_resolver = (
+        resolve_partner_voice_line_text
+        if kind == "partners"
+        else resolve_voice_line_text
+    )
+    title_resolver = partner_voice_line_title if kind == "partners" else voice_line_title
 
     for stream_index in range(1, stream_total + 1):
         meta = first_meta if stream_index == 1 else read_stream_metadata(
-            bank_path, stream_index, vgmstream_cli
+            bank_path, stream_index
         )
         stream_info = meta["streamInfo"]
         voice_event = stream_info.get("name") or f"sound_{stream_index}"
         line_key = voice_event_to_line_key(voice_event, combatant_id)
-        if should_skip_unmapped_lobby_enter_variant(line_key, exact_voice_text_ids):
+        if kind == "combatants" and should_skip_unmapped_lobby_enter_variant(
+            line_key, exact_voice_text_ids
+        ):
             continue
 
-        transcript = resolve_voice_line_text(line_key, transcript_text)
-        title, title_source = voice_line_title(line_key, title_text_by_lang)
+        transcript = text_resolver(line_key, transcript_text)
+        title, title_source = title_resolver(line_key, title_text_by_lang)
         translation = {
-            translation_lang: resolve_voice_line_text(line_key, translation_text)
+            translation_lang: text_resolver(line_key, translation_text)
             for translation_lang, translation_text in translation_text_by_lang.items()
         }
 
@@ -251,7 +281,7 @@ def export_bank(
         used_paths.add(wav_path)
 
         if overwrite or not wav_path.exists():
-            decode_stream(bank_path, stream_index, wav_path, vgmstream_cli)
+            decode_stream(bank_path, stream_index, wav_path)
 
         bank_lines.append(
             VoiceLine(
@@ -271,10 +301,10 @@ def export_bank(
     return bank_lines
 
 
-def read_stream_metadata(bank_path: Path, stream_index: int, vgmstream_cli: str) -> dict[str, Any]:
+def read_stream_metadata(bank_path: Path, stream_index: int) -> dict[str, Any]:
     result = subprocess.run(
         [
-            vgmstream_cli,
+            "vgmstream-cli",
             "-I",
             "-m",
             "-s",
@@ -292,12 +322,11 @@ def decode_stream(
     bank_path: Path,
     stream_index: int,
     wav_path: Path,
-    vgmstream_cli: str,
 ) -> None:
     wav_path.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            vgmstream_cli,
+            "vgmstream-cli",
             "-i",
             "-s",
             str(stream_index),
@@ -311,7 +340,11 @@ def decode_stream(
     )
 
 
-def build_summary(lines: list[VoiceLine], banks_exported: Counter[str]) -> dict[str, Any]:
+def build_summary(
+    lines: list[VoiceLine],
+    banks_exported: Counter[str],
+    character_key: str = "combatants",
+) -> dict[str, Any]:
     lines_by_lang: Counter[str] = Counter()
     transcript_by_lang: Counter[str] = Counter()
     translation_by_lang: Counter[str] = Counter()
@@ -335,7 +368,7 @@ def build_summary(lines: list[VoiceLine], banks_exported: Counter[str]) -> dict[
 
     combatant_ids = {line.combatant_id for line in lines}
     return {
-        "combatants": len(combatant_ids),
+        character_key: len(combatant_ids),
         "banks_by_lang": dict(sorted(banks_exported.items())),
         "lines": len(lines),
         "audio_files": sum(lines_by_lang.values()),
@@ -364,12 +397,17 @@ def build_summary(lines: list[VoiceLine], banks_exported: Counter[str]) -> dict[
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export combatant voice lines from FMOD banks.")
-    parser.add_argument("--output-root", type=Path, default=DEFAULT_EXPORT_ROOT)
+    parser = argparse.ArgumentParser(description="Export voice lines from FMOD banks.")
+    parser.add_argument(
+        "--kind",
+        choices=("combatants", "partners", "both"),
+        default="both",
+        help="Character type to export.",
+    )
+    parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--langs", default=",".join(DEFAULT_LANGS))
-    parser.add_argument("--ids", default="", help="Comma-separated combatant IDs to export.")
+    parser.add_argument("--ids", default="", help="Comma-separated character IDs to export.")
     parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--vgmstream-cli", default="vgmstream-cli")
     return parser.parse_args()
 
 
@@ -381,14 +419,22 @@ def main() -> None:
         for id_ in args.ids.split(",")
         if id_.strip()
     } or None
-    export = export_combatant_voice_lines(
-        export_root=args.output_root,
-        langs=langs,
-        combatant_ids=combatant_ids,
-        overwrite=args.overwrite,
-        vgmstream_cli=args.vgmstream_cli,
-    )
-    print(json.dumps(export.summary, ensure_ascii=False, indent=2))
+    if args.kind in ("partners", "both"):
+        export = export_partner_voice_lines(
+            export_root=args.output_root or DEFAULT_PARTNER_EXPORT_ROOT,
+            langs=langs,
+            partner_ids=combatant_ids,
+            overwrite=args.overwrite,
+        )
+        print(json.dumps(export.summary, ensure_ascii=False, indent=2))
+    if args.kind in ("combatants", "both"):
+        export = export_combatant_voice_lines(
+            export_root=args.output_root or DEFAULT_EXPORT_ROOT,
+            langs=langs,
+            combatant_ids=combatant_ids,
+            overwrite=args.overwrite,
+        )
+        print(json.dumps(export.summary, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

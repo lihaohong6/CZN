@@ -1,15 +1,7 @@
 from string import Template
 
-from pywikibot import Page
-from pywikibot.pagegenerators import PreloadingGenerator
-
-from char_info.partners import parse_partner_info
-from utils.wiki_utils import save_wikitext_page, s
-
-
-def partner_pages() -> list[Page]:
-    pages = [Page(s, info["name"]) for info in parse_partner_info().values()]
-    return list(PreloadingGenerator(pages))
+from char_info.partners import parse_partner_info, partner_pages
+from utils.wiki_utils import save_wikitext_page
 
 
 def auto_create_partner_pages():

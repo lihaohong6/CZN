@@ -7,12 +7,15 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from utils.utils import assets_root, load_db, load_text
+from utils.utils import assets_root, load_db, load_text, load_text_full
 
 
 DEFAULT_EXPORT_ROOT = Path("exports/voice_lines/combatants")
 DEFAULT_VOICE_LINES_JSON = DEFAULT_EXPORT_ROOT / "voice_lines.json"
 DEFAULT_OGG_ROOT = DEFAULT_EXPORT_ROOT / "ogg"
+DEFAULT_PARTNER_EXPORT_ROOT = Path("exports/voice_lines/partners")
+DEFAULT_PARTNER_VOICE_LINES_JSON = DEFAULT_PARTNER_EXPORT_ROOT / "voice_lines.json"
+DEFAULT_PARTNER_OGG_ROOT = DEFAULT_PARTNER_EXPORT_ROOT / "ogg"
 DEFAULT_LANGS = ("ja", "ko")
 VOICE_UPLOAD_LANGS = ("ja", "ko")
 VOICE_OGG_BITRATE = "128k"
@@ -110,6 +113,26 @@ def resolve_voice_line_text(line_key: str, text_by_id: dict[str, str]) -> str:
     return ""
 
 
+def resolve_partner_voice_line_text(line_key: str, text_by_id: dict[str, str]) -> str:
+    match = re.match(r"^(\d+)_(.+)$", line_key)
+    if not match:
+        candidates = [f"supporter_voice@voice_text@{line_key}"]
+    else:
+        partner_id, suffix = match.groups()
+        voice_info = supporter_voice_info_by_id().get(line_key, {})
+        candidates = [
+            str(voice_info.get("voice_text_id", "")),
+            f"supporter_voice@voice_text@{line_key}",
+            f"char_info_voice@voice_text@{partner_id}_info_voice_{suffix}",
+        ]
+
+    for text_id in dict.fromkeys(candidate for candidate in candidates if candidate):
+        text = text_by_id.get(text_id, "")
+        if text:
+            return text
+    return ""
+
+
 def voice_line_title(
     line_key: str,
     title_text_by_lang: dict[str, dict[str, str]],
@@ -130,6 +153,19 @@ def voice_line_title(
         }
         if titles:
             return titles, source
+
+    return {"en": guess_voice_line_title(voice_line_suffix(line_key))}, "guessed"
+
+
+def partner_voice_line_title(
+    line_key: str,
+    title_text_by_lang: dict[str, dict[str, str]],
+) -> tuple[dict[str, str], str]:
+    supporter_voice = supporter_voice_info_by_id().get(line_key)
+    if supporter_voice is not None:
+        title = str(supporter_voice.get("name", ""))
+        if title and title != "none" and not title.startswith("supporter_voice_"):
+            return {"en": title}, "game_exact"
 
     return {"en": guess_voice_line_title(voice_line_suffix(line_key))}, "guessed"
 
@@ -330,8 +366,35 @@ def combatant_names() -> dict[int, str]:
 
 
 @cache
+def partner_names() -> dict[int, str]:
+    from char_info.partners import parse_partner_info
+
+    return {
+        partner_id: str(info["name"])
+        for partner_id, info in parse_partner_info().items()
+    }
+
+
+@cache
 def combatant_voice_info_by_id() -> dict[str, dict[str, Any]]:
     return {str(entry["id"]): entry for entry in load_db("combatant_info@combatant_voice")}
+
+
+@cache
+def supporter_voice_info_by_id() -> dict[str, dict[str, Any]]:
+    raw_path = assets_root / "db/supporter_info@supporter_voice.json"
+    raw_entries = json.loads(raw_path.read_text(encoding="utf-8"))
+    result: dict[str, dict[str, Any]] = {}
+    text = load_text_full()
+    for raw_entry in raw_entries:
+        voice_id = str(raw_entry.get("id", ""))
+        if not voice_id or voice_id == "none":
+            continue
+        result[voice_id] = {
+            "name": text.get(str(raw_entry.get("name", "")), ""),
+            "voice_text_id": str(raw_entry.get("voice_text", "")),
+        }
+    return result
 
 
 @cache

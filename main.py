@@ -1,4 +1,15 @@
-from char_info.autocreate_character_pages import auto_create_combatant_pages, auto_create_counseling_pages
+from audio.audio_export import (
+    export_combatant_voice_lines,
+    export_partner_voice_lines,
+)
+from audio.wiki_audio_upload import (
+    publish_combatant_voice_lines,
+    publish_partner_voice_lines,
+)
+from char_info.autocreate_character_pages import (
+    auto_create_combatant_pages,
+    auto_create_counseling_pages,
+)
 from char_info.autocreate_partner_pages import auto_create_partner_pages
 from char_info.cards import save_cards
 from char_info.char_images import upload_character_images
@@ -27,9 +38,17 @@ def partner_info():
     auto_create_partner_pages()
 
 
+def voice_lines():
+    export_combatant_voice_lines()
+    export_partner_voice_lines()
+    publish_combatant_voice_lines()
+    publish_partner_voice_lines()
+
+
 def main():
     char_info()
     partner_info()
+    voice_lines()
 
 
 if __name__ == "__main__":

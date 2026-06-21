@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from collections import defaultdict
 from functools import cache
 
+from pywikibot import Page
+from pywikibot.pagegenerators import PreloadingGenerator
+
 from utils.utils import load_text
 from utils.utils import assets_root, db_root, load_db, resolve_text_markup
 
@@ -360,6 +363,16 @@ def parse_partner_info() -> dict[int, dict]:
                 result[char_id]["ego_skill"] = ego_skill
             result[char_id]["passive_skills"] = parse_partner_passive_skills(base_entry)
     return result
+
+
+def partner_pages(page_suffix: str = "") -> list[Page]:
+    from utils.wiki_utils import s
+
+    pages = [
+        Page(s, f'{info["name"]}{page_suffix}')
+        for info in parse_partner_info().values()
+    ]
+    return list(PreloadingGenerator(pages))
 
 
 def save_partner_info():
